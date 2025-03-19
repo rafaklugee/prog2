@@ -14,4 +14,10 @@ typedef struct fila_jornal {
 	noticia *final;
 } fila_jornal;
 
+noticia* criar_noticia();
+int inserir_noticia(noticia *nova, fila_jornal *fila);
+noticia* remover_noticia(fila_jornal *fila);
+void atualizar_fila(fila_jornal *fila);
+void destruir_fila(fila_jornal *fila);
+
 #endif
