@@ -1,0 +1,20 @@
+char titulo[33]
+char texto[513]
+char idade
+struct filajornal *p
+
+// Funções
+Atualizar
+Criar
+Inserir
+Remover
+Destruir
+
+// Função para fazer o input
+void requisita(char *titulo, char *texto) {
+	getchar();
+	printf("\nDigite o título: ");
+	fgets(titulo, 33, stdin);
+	printf("Digite o texto: ");
+	fgets(texto, 513, stdin);
+}
