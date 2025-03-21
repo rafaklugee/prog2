@@ -58,8 +58,20 @@ void atualizar_fila(fila_jornal *fila){
 	
 	int i = 0;
 	// Começa em fila->inicio; Enquanto iterador != NULL; iterador = iterador->prox
-	for (noticia *iterador = fila->inicio; iterador; iterador = iterador->prox) {
+	for (noticia *iterador = fila->inicio; iterador; iterador = fila->inicio) {
 		if (iterador->idade == 3)
-			i++;
+			free(remover_noticia(fila));
 	}
+	
+	for (noticia *iterador = fila->inicio; iterador; iterador->idade++, iterador = iterador->prox);
+}
+
+void destruir_noticia(fila_jornal *fila) {
+	if (!fila)
+		return;
+
+	while(fila->inicio)
+		free(remover_noticia(fila));
+
+	free(fila);
 }
