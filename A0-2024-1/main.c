@@ -13,13 +13,64 @@ typedef struct teddy_machine {
 
 /* List functions */
 
-teddy_machine* create_list (unsigned int machines){ /* INSTRUÇÃO: Implemente a função */ }
+teddy_machine* create_list (unsigned int machines){
+	if (!machines)
+		return 0;
 
-teddy_machine* select_machine (teddy_machine *list, unsigned int place){ /* INSTRUÇÃO: Implemente a função */ }
+	teddy_machine *list = malloc(sizeof(teddy_machine));
+	teddy_machine *keep = list;
+	list->id = machines;
+	list->probability = 5;
+	list->next = 0;
 
-teddy_machine* remove_machine (teddy_machine *list, teddy_machine *remove) { /* INSTRUÇÃO: Implemente a função */ }
+	for (int i = machines-1; i > 0; i--) {
+		list->previous = malloc(sizeof(teddy_machine));
+		list->previous->id = i;
+		list->previous->probability = 5;
+		list->previous->next = list;
+		list = list->previous;
+	}
 
-void destroy_list (teddy_machine *list){/* INSTRUÇÃO: Implemente a função */ }
+	list->previous = keep;
+	keep->next = list;
+}
+
+teddy_machine* select_machine (teddy_machine *list, unsigned int place) {
+    if (!list)
+        return 0;
+
+        teddy_machine *selection = list;
+
+    for (int i = 0; i < place; i++) {
+        selection = selection->next;
+    }
+
+    return selection;
+}
+
+teddy_machine* remove_machine (teddy_machine *list, teddy_machine *remove) {
+    if (!list || !remove)
+        return 0;
+
+    if (remove == list) {
+        if (remove->next == list) {
+            free(remove);
+            return 0;
+        }
+        list = remove->next;
+    }
+    remove->previous->next = remove->next;
+    remove->next->previous = remove->previous;
+    free(remove);
+
+    return list;
+}
+
+void destroy_list (teddy_machine* list) {
+    while (list) {
+        list = remove_machine(list, list);
+    }
+}
 
 /* Randomization functions */
 
@@ -52,30 +103,6 @@ void print_available_machines(teddy_machine *list){
 
 }
 
-/* Functions */
-
-teddy_machine* create_list (unsigned int machines){
-	if (!machines)
-		return 0;
-
-	teddy_machine *list = malloc(sizeof(teddy_machine));
-	teddy_machine *keep = list;
-	list->id = machines;
-	list->probability = 5;
-	list->prox = 0;
-
-	for (int i = machines-1; i > 0; i--) {
-		list->antes = malloc(sizeof(teddy_machine));
-		list->antes->id = i;
-		list->antes->probability = 5;
-		list->antes->prox = list;
-		list = list->antes
-	}
-
-	list->antes = keep;
-	keep->prox = list
-}
-
 /* Main function */
 
 int main(int argc, char *argv[]){
@@ -103,19 +130,27 @@ int main(int argc, char *argv[]){
 
     teddy_machine *list = create_list(machines);
     srand(seed);
+\
+    teddy_machine *round_machine;
 
     unsigned int machine_place, machine_attempt;
     for (unsigned int r = 0; r < rounds; r++){
-        printf("\n============================ ROUND %u ============================\n", r+1);
-        machine_place = get_place(machines); /* Define a localização da máquina da rodada, não considera máquinas sem urso */
-        machine_attempt = get_attempt(); /* Define a tentativa da rodada; se for menor ou igual à probabilidade da máquina selecionada, o urso foi pego */
+        
+        machine_place = get_place(machines); /* Define a localizaï¿½ï¿½o da mï¿½quina da rodada, nï¿½o considera mï¿½quinas sem urso */
+        machine_attempt = get_attempt(); /* Define a tentativa da rodada; se for menor ou igual ï¿½ probabilidade da mï¿½quina selecionada, o urso foi pego */
 
-        /* INSTRUÇÃO: Implemente a lógica do seu programa aqui */
-        /* INSTRUÇÃO: Utilize a função "print_attempt" antes do "print_available_machines"! */
-
-        print_available_machines(list);
-        printf("==================================================================\n");
+        round_machine = select_machine(list, machine_place);
+        if (round_machine){
+            printf("\n============================ ROUND %u ============================\n", r+1);
+            print_attempt(round_machine, machine_attempt);
+            if (round_machine->probability > machine_attempt) list = remove_machine(list, round_machine);
+            else round_machine->probability += 2;
+            print_available_machines(list);
+            printf("==================================================================\n");
+        }
+        else break;
     }
 
+    destroy_list(list);
     return 0;
 }

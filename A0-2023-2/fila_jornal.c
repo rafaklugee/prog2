@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "fila_jornal.h"
 
 void requisitar_noticia(char *titulo, char *texto){
