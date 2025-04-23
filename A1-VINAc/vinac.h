@@ -11,6 +11,7 @@ struct membro {
     int data;
     int ordem;
     int offset;
+    int comprimido;
     struct membro *prox;
 };
 
@@ -18,10 +19,10 @@ struct membro {
 void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao);
 
 // Extraindo o membro da lista encadeada (-x)
-void extrair_membro (char *nome_arquivo, int compressao);
+void extrair_membro(char *nome_archive, char *nome_arquivo);
 
 // Removendo os membros da lista encadeada (-r)
-void remove_membro (char *nome_arquivo, int compressao);
+void remove_membro (char *nome_arquivo);
 
 // Lista o contéudo do archive em ordem (-c)
 void listar_conteudo (char *nome_arquivo);

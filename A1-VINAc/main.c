@@ -21,17 +21,26 @@ int main(int argc, char *argv[]) {
         // Inserir membros sem compressão
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];
-            printf("Inserindo membro sem compressão: %s\n!", membro);
+            printf("Inserindo membro sem compressão: %s!\n", membro);
             inserir_membro(nome_archive, membro, 0); // 0 = sem compressão
         }
     } else if (strcmp(opcao, "-ic") == 0) {
         // Inserir membros com compressão
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];
-            printf("Inserindo membro com compressão: %s\n!", membro);
+            printf("Inserindo membro com compressão: %s!\n", membro);
             inserir_membro(nome_archive, membro, 1); // 1 = com compressão
         }
-    } else {
+    } else if (strcmp(opcao, "-x") == 0) {
+        // Extrair membros do archive
+        for (int i = 3; i < argc; i++) {
+            char *membro = argv[i];
+            printf("Extraindo membro %s do archive!\n", membro);
+            extrair_membro(nome_archive, membro);
+        }
+    }
+    
+    else {
         fprintf(stderr, "Opção inválida: %s\n.", opcao);
         return 1;
     }

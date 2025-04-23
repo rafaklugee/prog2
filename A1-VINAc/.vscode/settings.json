@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "stdio.h": "c",
-        "vinac.h": "c"
+        "vinac.h": "c",
+        "lista.h": "c"
     }
 }
