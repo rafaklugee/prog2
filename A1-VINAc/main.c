@@ -1,0 +1,40 @@
+#include <stdio.h>
+#include <string.h>
+#include "vinac.h"
+
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        fprintf(stderr, "Uso: vinac <opção> <arquivo.vc> [membro1 membro2 ...]\n");
+        return 1;
+    }
+
+    char *opcao = argv[1];
+    char *nome_archive = argv[2];
+
+    // Verifica se o nome do arquivo termina com ".vc"
+    if (!strstr(nome_archive, ".vc")) {
+        fprintf(stderr, "Erro: O arquivo de archive deve ter a extensão .vc\n");
+        return 1;
+    }
+
+    if (strcmp(opcao, "-ip") == 0) {
+        // Inserir membros sem compressão
+        for (int i = 3; i < argc; i++) {
+            char *membro = argv[i];
+            printf("Inserindo membro sem compressão: %s\n", membro);
+            inserir_membro(nome_archive, membro, 0); // 0 = sem compressão
+        }
+    } else if (strcmp(opcao, "-ic") == 0) {
+        // Inserir membros com compressão
+        for (int i = 3; i < argc; i++) {
+            char *membro = argv[i];
+            printf("Inserindo membro com compressão: %s\n", membro);
+            inserir_membro(nome_archive, membro, 1); // 1 = com compressão
+        }
+    } else {
+        fprintf(stderr, "Opção inválida: %s\n", opcao);
+        return 1;
+    }
+
+    return 0;
+}
