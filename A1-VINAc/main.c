@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include "vinac.h"
+#include "lista.h"
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
         fprintf(stderr, "Uso: vinac <opção> <arquivo.vc> [membro1 membro2 ...]\n");
         return 1;
     }
-
+  
     char *opcao = argv[1];
     char *nome_archive = argv[2];
 
@@ -38,9 +39,7 @@ int main(int argc, char *argv[]) {
             printf("Extraindo membro %s do archive!\n", membro);
             extrair_membro(nome_archive, membro);
         }
-    }
-    
-    else {
+    } else {
         fprintf(stderr, "Opção inválida: %s\n.", opcao);
         return 1;
     }

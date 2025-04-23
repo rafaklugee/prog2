@@ -1,17 +1,33 @@
 #ifndef __LISTA_H__
 #define __LISTA_H__
-#include <stdio.h>
 
-// Definindo uma lista global de membros
-struct lista_membros {
-    struct membro *inicio;
-    int quantidade;       
+struct item_t {
+  void *valor; // Alterado de int para void *
+  struct item_t *ant;	
+  struct item_t *prox;
 };
 
-struct membro *buscar_membro(struct lista_membros *lista, char *nome_arquivo);
+// estrutura de uma lista
+struct lista_t {
+  struct item_t *prim;
+  struct item_t *ult;
+  int tamanho;
+};
 
-void liberar_lista(struct lista_membros *lista);
+struct lista_t *lista_cria();
 
-void adicionar_membro(struct lista_membros *lista, struct membro *novo_membro);
+struct lista_t *lista_destroi(struct lista_t *lst);
+
+int lista_insere(struct lista_t *lst, void *item, int pos);
+
+int lista_retira(struct lista_t *lst, void **item, int pos);
+
+int lista_consulta(struct lista_t *lst, void **item, int pos);
+
+int lista_procura(struct lista_t *lst, void *valor);
+
+int lista_tamanho(struct lista_t *lst);
+
+void lista_imprime(struct lista_t *lst);
 
 #endif

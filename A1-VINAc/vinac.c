@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <stdlib.h>
 #include "vinac.h"
 #include "lz.h"
 #include "lista.h"
 
-struct lista_membros lista_membros = {NULL, 0};
+struct lista_t lista_membros = {NULL, NULL, 0};
 
 void limpar(FILE *entrada, FILE *arquivo_comprimido, FILE *archive, struct membro *novo_membro) {
     if (entrada) 
@@ -25,7 +26,7 @@ void carregar_membros(char *nome_archive) {
         return;
     }
 
-    liberar_lista(&lista_membros); // Limpa a lista antes de carregar
+    lista_destroi(&lista_membros); // Limpa a lista antes de carregar
 
     struct membro temp_membro;
     while (fread(&temp_membro, sizeof(struct membro), 1, archive) == 1) {
@@ -36,12 +37,20 @@ void carregar_membros(char *nome_archive) {
             return;
         }
         *novo_membro = temp_membro;
-        novo_membro->prox = NULL;
 
-        adicionar_membro(&lista_membros, novo_membro);
+        // Insere o membro na lista
+        lista_insere(&lista_membros, novo_membro, -1);
     }
 
     fclose(archive);
+
+    // Itera sobre os membros carregados
+    struct item_t *temp = lista_membros.prim;
+    while (temp) {
+        struct membro *membro_atual = (struct membro *)temp->valor;
+        printf("Membro carregado: %s\n", membro_atual->nome);
+        temp = temp->prox;
+    }
 }
 
 int comprimir_arquivo(FILE *entrada, FILE *arquivo_comprimido, int tam_original, int *tamanho_comprimido) {
@@ -153,18 +162,15 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao) {
 
     // Calcula o offset e a ordem
     int offset = 0, ordem = 0;
-    struct membro *temp = lista_membros.inicio;
+    struct item_t *temp = lista_membros.prim;
     while (temp) {
-        offset += temp->tam_disco;
+        struct membro *membro_atual = (struct membro *)temp->valor;
+        offset += membro_atual->tam_disco;
         ordem++;
         temp = temp->prox;
     }
     novo_membro->offset = offset;
     novo_membro->ordem = ordem;
-    novo_membro->prox = NULL;
-
-    // Insere o novo membro na lista
-    adicionar_membro(&lista_membros, novo_membro);
 
     // Se houver compressão, comprime o arquivo
     if (compressao) {
@@ -232,13 +238,30 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao) {
     // Escreve o membro no arquivo de archive
     fwrite(novo_membro, sizeof(struct membro), 1, archive);
 
+    // Insere o novo membro na lista
+    lista_insere(&lista_membros, novo_membro, -1); // Insere no final da lista
+
+    printf("Inserindo membro: %s, offset: %d, tamanho: %d\n",
+           novo_membro->nome, novo_membro->offset, novo_membro->tam_disco);
+
     limpar(entrada, NULL, archive, NULL);
 }
 
 void extrair_membro(char *nome_archive, char *nome_arquivo) {
-    carregar_membros(nome_archive); // Carrega a lista de membros do archive
+    carregar_membros(nome_archive);
 
-    struct membro *membro_atual = buscar_membro(&lista_membros, nome_arquivo);
+    struct item_t *temp = lista_membros.prim;
+    struct membro *membro_atual = NULL;
+
+    while (temp) {
+        struct membro *membro = (struct membro *)temp->valor;
+        if (strcmp(membro->nome, nome_arquivo) == 0) {
+            membro_atual = membro;
+            break;
+        }
+        temp = temp->prox;
+    }
+
     if (!membro_atual) {
         fprintf(stderr, "Arquivo %s não encontrado no archive\n", nome_arquivo);
         return;
@@ -250,7 +273,6 @@ void extrair_membro(char *nome_archive, char *nome_arquivo) {
         return;
     }
 
-    // Abre o arquivo de saída para gravar o conteúdo extraído
     FILE *saida = fopen(nome_arquivo, "wb");
     if (!saida) {
         fprintf(stderr, "Erro ao criar o arquivo de saída %s\n", nome_arquivo);
@@ -258,16 +280,13 @@ void extrair_membro(char *nome_archive, char *nome_arquivo) {
         return;
     }
 
-    // Move o ponteiro para onde o dado alvo está localizado
     fseek(archive, membro_atual->offset, SEEK_SET);
 
     if (membro_atual->comprimido) {
-        // O arquivo está comprimido, descomprime
         if (descomprimir_arquivo(saida, archive, membro_atual->tam_original, membro_atual->tam_disco) < 0) {
             fprintf(stderr, "Erro ao descomprimir o arquivo %s\n", nome_arquivo);
         }
     } else {
-        // O arquivo não está comprimido, copia diretamente
         unsigned char *buffer = (unsigned char *)malloc(membro_atual->tam_original);
         if (!buffer) {
             fprintf(stderr, "Erro ao alocar memória para o buffer\n");
