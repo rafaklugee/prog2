@@ -18,6 +18,32 @@ void limpar(FILE *entrada, FILE *arquivo_comprimido, FILE *archive, struct membr
         free(novo_membro);
 }
 
+void carregar_membros(char *nome_archive) {
+    FILE *archive = fopen(nome_archive, "rb");
+    if (!archive) {
+        fprintf(stderr, "Erro ao abrir o arquivo de archive para leitura!\n");
+        return;
+    }
+
+    liberar_lista(&lista_membros); // Limpa a lista antes de carregar
+
+    struct membro temp_membro;
+    while (fread(&temp_membro, sizeof(struct membro), 1, archive) == 1) {
+        struct membro *novo_membro = (struct membro *)malloc(sizeof(struct membro));
+        if (!novo_membro) {
+            fprintf(stderr, "Erro ao alocar memória para o membro\n");
+            fclose(archive);
+            return;
+        }
+        *novo_membro = temp_membro;
+        novo_membro->prox = NULL;
+
+        adicionar_membro(&lista_membros, novo_membro);
+    }
+
+    fclose(archive);
+}
+
 int comprimir_arquivo(FILE *entrada, FILE *arquivo_comprimido, int tam_original, int *tamanho_comprimido) {
     unsigned char *buffer_in = (unsigned char *)malloc(tam_original);
     if (!buffer_in) {
@@ -257,31 +283,5 @@ void extrair_membro(char *nome_archive, char *nome_arquivo) {
     }
 
     fclose(saida);
-    fclose(archive);
-}
-
-void carregar_membros(char *nome_archive) {
-    FILE *archive = fopen(nome_archive, "rb");
-    if (!archive) {
-        fprintf(stderr, "Erro ao abrir o arquivo de archive para leitura!\n");
-        return;
-    }
-
-    liberar_lista(&lista_membros); // Limpa a lista antes de carregar
-
-    struct membro temp_membro;
-    while (fread(&temp_membro, sizeof(struct membro), 1, archive) == 1) {
-        struct membro *novo_membro = (struct membro *)malloc(sizeof(struct membro));
-        if (!novo_membro) {
-            fprintf(stderr, "Erro ao alocar memória para o membro\n");
-            fclose(archive);
-            return;
-        }
-        *novo_membro = temp_membro;
-        novo_membro->prox = NULL;
-
-        adicionar_membro(&lista_membros, novo_membro);
-    }
-
     fclose(archive);
 }
