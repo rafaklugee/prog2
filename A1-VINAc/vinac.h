@@ -14,13 +14,19 @@ struct membro {
     struct membro *prox;
 };
 
-// Vou inserir o membro na lista, o valor compressão pode ser 0 (sem compressão) ou 1 (com compressão)
+// Inserindo o membro na lista encadeada (-ip e -ic)
 void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao);
 
+// Extraindo o membro da lista encadeada (-x)
 void extrair_membro (char *nome_arquivo, int compressao);
 
-void listar_membros (struct membro *arquivo);
+// Removendo os membros da lista encadeada (-r)
+void remove_membro (char *nome_arquivo, int compressao);
 
-struct membro* ler_diretorio (FILE *arquivo);
+// Lista o contéudo do archive em ordem (-c)
+void listar_conteudo (char *nome_arquivo);
+
+// Move o membro para depois do membro especificado em archive (-m membro)
+void mover_membro (char *nome_arquivo, struct membro *membro);
 
 #endif
