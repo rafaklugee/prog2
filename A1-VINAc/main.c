@@ -18,26 +18,33 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Criando a lista de membros
+    struct lista_t *lista_membros = lista_cria();
+    if (!lista_membros) {
+        fprintf(stderr, "Erro ao criar a lista de membros!\n");
+        return 1;
+    }
+
     if (strcmp(opcao, "-ip") == 0) {
         // Inserir membros sem compressão
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];
             printf("Inserindo membro sem compressão: %s!\n", membro);
-            inserir_membro(nome_archive, membro, 0); // 0 = sem compressão
+            inserir_membro(nome_archive, membro, 0, lista_membros); // 0 = sem compressão
         }
     } else if (strcmp(opcao, "-ic") == 0) {
         // Inserir membros com compressão
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];
             printf("Inserindo membro com compressão: %s!\n", membro);
-            inserir_membro(nome_archive, membro, 1); // 1 = com compressão
+            inserir_membro(nome_archive, membro, 1, lista_membros); // 1 = com compressão
         }
     } else if (strcmp(opcao, "-x") == 0) {
         // Extrair membros do archive
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];
             printf("Extraindo membro %s do archive!\n", membro);
-            extrair_membro(nome_archive, membro);
+            extrair_membro(nome_archive, membro, lista_membros);
         }
     } else {
         fprintf(stderr, "Opção inválida: %s\n.", opcao);

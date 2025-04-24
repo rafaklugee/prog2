@@ -6,27 +6,15 @@
 #include "lz.h"
 #include "lista.h"
 
-struct lista_t lista_membros = {NULL, NULL, 0};
-
-void limpar(FILE *entrada, FILE *arquivo_comprimido, FILE *archive, struct membro *novo_membro) {
-    if (entrada) 
-        fclose(entrada);
-    if (arquivo_comprimido)
-        fclose(arquivo_comprimido);
-    if (archive)
-        fclose(archive);
-    if (novo_membro)
-        free(novo_membro);
-}
-
-void carregar_membros(char *nome_archive) {
+// Função para carregar os membros do arquivo para a lista global
+void carregar_membros(char *nome_archive, struct lista_t *lista_membros) {
     FILE *archive = fopen(nome_archive, "rb");
     if (!archive) {
         fprintf(stderr, "Erro ao abrir o arquivo de archive para leitura!\n");
         return;
     }
 
-    lista_destroi(&lista_membros); // Limpa a lista antes de carregar
+    lista_destroi(lista_membros); // Limpa a lista antes de carregar
 
     struct membro temp_membro;
     while (fread(&temp_membro, sizeof(struct membro), 1, archive) == 1) {
@@ -39,18 +27,21 @@ void carregar_membros(char *nome_archive) {
         *novo_membro = temp_membro;
 
         // Insere o membro na lista
-        lista_insere(&lista_membros, novo_membro, -1);
+        lista_insere(lista_membros, novo_membro->uid, -1);
     }
 
     fclose(archive);
+}
 
-    // Itera sobre os membros carregados
-    struct item_t *temp = lista_membros.prim;
-    while (temp) {
-        struct membro *membro_atual = (struct membro *)temp->valor;
-        printf("Membro carregado: %s\n", membro_atual->nome);
-        temp = temp->prox;
-    }
+void limpar(FILE *entrada, FILE *arquivo_comprimido, FILE *archive, struct membro *novo_membro) {
+    if (entrada) 
+        fclose(entrada);
+    if (arquivo_comprimido)
+        fclose(arquivo_comprimido);
+    if (archive)
+        fclose(archive);
+    if (novo_membro)
+        free(novo_membro);
 }
 
 int comprimir_arquivo(FILE *entrada, FILE *arquivo_comprimido, int tam_original, int *tamanho_comprimido) {
@@ -123,7 +114,7 @@ int descomprimir_arquivo(FILE *saida, FILE *arquivo_comprimido, int tam_original
     return 0;
 }
 
-void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao) {
+void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, struct lista_t *lista_membros) {
     FILE *entrada = fopen(nome_arquivo, "rb");
     if (!entrada) {
         fprintf(stderr, "Erro ao abrir o arquivo %s\n", nome_arquivo);
@@ -162,10 +153,9 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao) {
 
     // Calcula o offset e a ordem
     int offset = 0, ordem = 0;
-    struct item_t *temp = lista_membros.prim;
+    struct item_t *temp = lista_membros->prim;
     while (temp) {
-        struct membro *membro_atual = (struct membro *)temp->valor;
-        offset += membro_atual->tam_disco;
+        offset += temp->membro->tam_disco; // Acessa o tamanho do membro atual
         ordem++;
         temp = temp->prox;
     }
@@ -239,7 +229,7 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao) {
     fwrite(novo_membro, sizeof(struct membro), 1, archive);
 
     // Insere o novo membro na lista
-    lista_insere(&lista_membros, novo_membro, -1); // Insere no final da lista
+    lista_insere(lista_membros, novo_membro->uid, -1); // Insere no final da lista
 
     printf("Inserindo membro: %s, offset: %d, tamanho: %d\n",
            novo_membro->nome, novo_membro->offset, novo_membro->tam_disco);
@@ -247,16 +237,15 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao) {
     limpar(entrada, NULL, archive, NULL);
 }
 
-void extrair_membro(char *nome_archive, char *nome_arquivo) {
-    carregar_membros(nome_archive);
+void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros) {
+    carregar_membros(nome_archive, lista_membros);
 
-    struct item_t *temp = lista_membros.prim;
+    struct item_t *temp = lista_membros->prim;
     struct membro *membro_atual = NULL;
 
     while (temp) {
-        struct membro *membro = (struct membro *)temp->valor;
-        if (strcmp(membro->nome, nome_arquivo) == 0) {
-            membro_atual = membro;
+        if (strcmp(temp->membro->nome, nome_arquivo) == 0) {
+            membro_atual = temp->membro;
             break;
         }
         temp = temp->prox;

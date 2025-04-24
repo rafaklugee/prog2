@@ -2,6 +2,7 @@
 #define __VINAC_H__
 #include <stdio.h>
 #include <stdlib.h>
+#include "lista.h"
 
 struct membro {
     char nome[50];
@@ -16,10 +17,10 @@ struct membro {
 };
 
 // Inserindo o membro na lista encadeada (-ip e -ic)
-void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao);
+void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, struct lista_t *lista_membros);
 
 // Extraindo o membro da lista encadeada (-x)
-void extrair_membro(char *nome_archive, char *nome_arquivo);
+void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros);
 
 // Removendo os membros da lista encadeada (-r)
 void remove_membro (char *nome_arquivo);
