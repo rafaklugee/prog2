@@ -1,9 +1,4 @@
-// TAD lista de números inteiros
-// Carlos Maziero - DINF/UFPR, Out 2024
-//
-// Implementação do TAD
-//
-// Implementação com lista encadeada dupla não-circular
+// Implementação feita na matéria de Prog1
 
 #include <stdio.h>
 #include <stdlib.h>
