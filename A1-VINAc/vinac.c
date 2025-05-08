@@ -32,19 +32,27 @@ struct membro* busca_membro(int uid, FILE *archive) {
 
 
 // Função para carregar os membros do arquivo para a lista global
-void carregar_membros(char *nome_archive, struct lista_t *lista_membros) {
-    FILE *archive = fopen(nome_archive, "rb");
-    if (!archive) {
-        fprintf(stderr, "Erro ao abrir o arquivo de archive para leitura!\n");
-        return;
+struct lista_t *carregar_membros(FILE *arquivo, struct lista_t *lista_membros) {
+    if (!arquivo) {
+        fprintf(stderr, "Arquivo não pode ser lido em carregar_membros.\n");
+        return NULL;
     }
 
-    struct membro temp_membro;
-    while (fread(&temp_membro, sizeof(struct membro), 1, archive) == 1) {
-        lista_insere(lista_membros, temp_membro.uid, -1);
+    int membros, i;
+    fread(&membros, sizeof(int), 1, arquivo); // Lê o número de membros
+
+    for (i = 0; i < membros; i++) {
+        struct membro *m = malloc(sizeof(struct membro));
+        if (!m) {
+            fprintf(stderr, "Erro ao alocar memória para o membro.\n");
+            return NULL;
+        }
+
+        fread(m, sizeof(struct membro), 1, arquivo); // Lê os dados do membro
+        lista_insere(lista_membros, m->uid, -1); // Insere na lista
     }
 
-    fclose(archive);
+    return lista_membros;
 }
 
 void limpar(FILE *entrada, FILE *arquivo_comprimido, FILE *archive, struct membro *novo_membro) {
@@ -257,11 +265,17 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
 }
 
 void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros) {
+    FILE *archive = fopen(nome_archive, "rb");
+    if (!archive) {
+        fprintf(stderr, "Erro ao abrir o arquivo de archive!\n");
+        return;
+    }
+    
     printf ("Essa eh a lista de membros dentro de extrair_membro(antes): ");
     lista_imprime(lista_membros);
     printf ("\n");
 
-    carregar_membros(nome_archive, lista_membros);
+    lista_membros = carregar_membros(archive, lista_membros);
 
     printf ("Essa eh a lista de membros dentro de extrair_membro(depois): ");
     lista_imprime(lista_membros);
@@ -269,12 +283,6 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 
     struct item_t *temp = lista_membros->prim;
     struct membro *membro_atual = NULL;
-
-    FILE *archive = fopen(nome_archive, "rb");
-    if (!archive) {
-        fprintf(stderr, "Erro ao abrir o arquivo de archive!\n");
-        return;
-    }
 
     while (temp) {
         struct membro *m = busca_membro(temp->valor, archive);
