@@ -25,14 +25,14 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    if (strcmp(opcao, "-ip") == 0) {
+    if (strcmp(opcao, "-ip") == 0 || strcmp(opcao, "-p") == 0) {
         // Inserir membros sem compressão
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];
             printf("Inserindo membro sem compressão: %s!\n", membro);
             inserir_membro(nome_archive, membro, 0, lista_membros); // 0 = sem compressão
         }
-    } else if (strcmp(opcao, "-ic") == 0) {
+    } else if (strcmp(opcao, "-ic") == 0 || strcmp(opcao, "-i") == 0) {
         // Inserir membros com compressão
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];

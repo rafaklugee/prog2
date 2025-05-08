@@ -181,7 +181,8 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
 
     // Calcula o offset e a ordem
     fseek(archive, 0, SEEK_END); // Move o cursor para o final do arquivo
-    novo_membro->offset = ftell(archive); // Posição do novo membro no arquivo
+    long posicao_atual = ftell(archive); // Posição atual no arquivo
+    novo_membro->offset = posicao_atual + sizeof(struct membro); // Offset dos dados do membro
     novo_membro->ordem = lista_membros->tamanho; // Ordem atual
     
 
@@ -308,7 +309,8 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
         return;
     }
 
-    fseek(archive, membro_atual->offset, SEEK_SET);
+    fseek(archive, membro_atual->offset, SEEK_SET); // Posiciona no início dos dados do membro
+    printf ("O offset eh: %d\n", membro_atual->offset);
 
     if (membro_atual->comprimido) {
         if (descomprimir_arquivo(saida, archive, membro_atual->tam_original, membro_atual->tam_disco) < 0) {
@@ -323,8 +325,24 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
             return;
         }
 
-        fread(buffer, 1, membro_atual->tam_original, archive);
-        fwrite(buffer, 1, membro_atual->tam_original, saida);
+        size_t lidos = fread(buffer, 1, membro_atual->tam_original, archive);
+        if (lidos != (size_t)membro_atual->tam_original) {
+            fprintf(stderr, "Erro ao ler dados do arquivo (esperado: %d, lido: %zu)\n", membro_atual->tam_original, lidos);
+            free(buffer);
+            fclose(saida);
+            fclose(archive);
+            return;
+        }
+
+        size_t escritos = fwrite(buffer, 1, membro_atual->tam_original, saida);
+        if (escritos != (size_t)membro_atual->tam_original) {
+            fprintf(stderr, "Erro ao escrever dados no arquivo de saída (esperado: %d, escrito: %zu)\n", membro_atual->tam_original, escritos);
+            free(buffer);
+            fclose(saida);
+            fclose(archive);
+            return;
+        }
+
         free(buffer);
     }
 
