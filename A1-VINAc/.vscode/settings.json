@@ -3,6 +3,8 @@
         "stdio.h": "c",
         "vinac.h": "c",
         "lista.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "stat.h": "c",
+        "lz.h": "c"
     }
 }

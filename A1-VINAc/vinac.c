@@ -6,6 +6,33 @@
 #include "lz.h"
 #include "lista.h"
 
+//struct membro* busca_membro(int uid, FILE *archive) {
+//    if (!archive) {
+//        fprintf(stderr, "Arquivo não pode ser lido em busca_membro.\n");
+//        return NULL;
+//    }
+//
+//    rewind(archive); // Garante que vamos ler desde o início do arquivo
+//
+//    struct membro *m = malloc(sizeof(struct membro));
+//    if (!m) {
+//        fprintf(stderr, "Erro ao alocar memória para o membro.\n");
+//        return NULL;
+//    }
+//
+//    while (fread(&m, sizeof(struct membro), 1, archive) == 1) {
+//        printf ("...Procurando...\n");
+//        if (m->uid == uid) {  // Busca pelo uid
+//            printf ("Encontrei um membro com esse uid: %d", m->uid);
+//            return m; // Encontrou, retorna
+//        }
+//    }
+//
+//    free(m); // Não encontrou, libera memória
+//    return NULL;
+//}
+
+
 // Função para carregar os membros do arquivo para a lista global
 void carregar_membros(char *nome_archive, struct lista_t *lista_membros) {
     FILE *archive = fopen(nome_archive, "rb");
@@ -13,8 +40,6 @@ void carregar_membros(char *nome_archive, struct lista_t *lista_membros) {
         fprintf(stderr, "Erro ao abrir o arquivo de archive para leitura!\n");
         return;
     }
-
-    lista_destroi(lista_membros); // Limpa a lista antes de carregar
 
     struct membro temp_membro;
     while (fread(&temp_membro, sizeof(struct membro), 1, archive) == 1) {
@@ -26,9 +51,16 @@ void carregar_membros(char *nome_archive, struct lista_t *lista_membros) {
         }
         *novo_membro = temp_membro;
 
+        printf("Achei esse novo_membro: nome=%s, uid=%d, tam_original=%d, tam_disco=%d, data=%d, ordem=%d, offset=%d, comprimido=%d\n",
+               novo_membro->nome, novo_membro->uid, novo_membro->tam_original,
+               novo_membro->tam_disco, novo_membro->data, novo_membro->ordem,
+               novo_membro->offset, novo_membro->comprimido);
+
         // Insere o membro na lista
         lista_insere(lista_membros, novo_membro->uid, -1);
     }
+
+    
 
     fclose(archive);
 }
@@ -94,23 +126,28 @@ int descomprimir_arquivo(FILE *saida, FILE *arquivo_comprimido, int tam_original
     }
 
     // Lê o conteúdo do arquivo comprimido para o buffer
-    fread(buffer_in, 1, tamanho_comprimido, arquivo_comprimido);
-
-    // Chama a função de descompressão
-    LZ_Uncompress(buffer_in, buffer_out, tamanho_comprimido);
-    if (!buffer_out) {
-        fprintf(stderr, "Erro ao descomprimir o arquivo\n");
+    size_t lidos = fread(buffer_in, 1, tamanho_comprimido, arquivo_comprimido);
+    if (lidos != (size_t)tamanho_comprimido) {
+        fprintf(stderr, "Erro ao ler dados comprimidos do arquivo (esperado: %d, lido: %zu)\n", tamanho_comprimido, lidos);
         free(buffer_in);
         free(buffer_out);
         return -1;
     }
 
+    // Descomprime os dados (sem retorno, então assumimos sucesso)
+    LZ_Uncompress(buffer_in, buffer_out, tamanho_comprimido);
+
     // Escreve o buffer descomprimido no arquivo de saída
-    fwrite(buffer_out, 1, tam_original, saida);
+    size_t escritos = fwrite(buffer_out, 1, tam_original, saida);
+    if (escritos != (size_t)tam_original) {
+        fprintf(stderr, "Erro ao escrever dados descomprimidos no arquivo de saída\n");
+        free(buffer_in);
+        free(buffer_out);
+        return -1;
+    }
 
     free(buffer_in);
     free(buffer_out);
-
     return 0;
 }
 
@@ -152,15 +189,10 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
     novo_membro->data = data;
 
     // Calcula o offset e a ordem
-    int offset = 0, ordem = 0;
-    struct item_t *temp = lista_membros->prim;
-    while (temp) {
-        offset += temp->membro->tam_disco; // Acessa o tamanho do membro atual
-        ordem++;
-        temp = temp->prox;
-    }
-    novo_membro->offset = offset;
-    novo_membro->ordem = ordem;
+    fseek(archive, 0, SEEK_END); // Move o cursor para o final do arquivo
+    novo_membro->offset = ftell(archive); // Posição do novo membro no arquivo
+    novo_membro->ordem = lista_membros->tamanho; // Ordem atual
+    
 
     // Se houver compressão, comprime o arquivo
     if (compressao) {
@@ -231,34 +263,49 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
     // Insere o novo membro na lista
     lista_insere(lista_membros, novo_membro->uid, -1); // Insere no final da lista
 
+    printf ("Essa eh a lista de membros (espero ter uid): ");
+    lista_imprime(lista_membros);
+    printf ("\n");
+
     printf("Inserindo membro: %s, offset: %d, tamanho: %d\n",
            novo_membro->nome, novo_membro->offset, novo_membro->tam_disco);
 
     limpar(entrada, NULL, archive, NULL);
+
+    printf ("Inseri o membro com as seguintes informações:\n");
+    printf ("Nome: %s, uid: %d, tam_original: %d, tam_disco: %d, data: %d, ordem: %d, offset: %d, ehComprimido: %d\n",
+            novo_membro->nome, novo_membro->uid, novo_membro->tam_original,
+            novo_membro->tam_disco, novo_membro->data, novo_membro->ordem,
+            novo_membro->offset, novo_membro->comprimido);
 }
 
 void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros) {
+    printf ("Essa eh a lista de membros dentro de extrair_membro(1): ");
+    lista_imprime(lista_membros);
+    printf ("\n");
+
     carregar_membros(nome_archive, lista_membros);
+
+    printf ("Essa eh a lista de membros dentro de extrair_membro(2): ");
+    lista_imprime(lista_membros);
+    printf ("\n");
 
     struct item_t *temp = lista_membros->prim;
     struct membro *membro_atual = NULL;
 
+    FILE *archive = fopen(nome_archive, "rb");
+    if (!archive) {
+        fprintf(stderr, "Erro ao abrir o arquivo de archive!\n");
+        return;
+    }
+
     while (temp) {
-        if (strcmp(temp->membro->nome, nome_arquivo) == 0) {
-            membro_atual = temp->membro;
-            break;
-        }
         temp = temp->prox;
     }
 
     if (!membro_atual) {
         fprintf(stderr, "Arquivo %s não encontrado no archive\n", nome_arquivo);
-        return;
-    }
-
-    FILE *archive = fopen(nome_archive, "rb");
-    if (!archive) {
-        fprintf(stderr, "Erro ao abrir o arquivo de archive!\n");
+        fclose(archive);
         return;
     }
 
@@ -286,10 +333,10 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 
         fread(buffer, 1, membro_atual->tam_original, archive);
         fwrite(buffer, 1, membro_atual->tam_original, saida);
-
         free(buffer);
     }
 
     fclose(saida);
     fclose(archive);
 }
+
