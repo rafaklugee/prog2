@@ -6,31 +6,29 @@
 #include "lz.h"
 #include "lista.h"
 
-//struct membro* busca_membro(int uid, FILE *archive) {
-//    if (!archive) {
-//        fprintf(stderr, "Arquivo não pode ser lido em busca_membro.\n");
-//        return NULL;
-//    }
-//
-//    rewind(archive); // Garante que vamos ler desde o início do arquivo
-//
-//    struct membro *m = malloc(sizeof(struct membro));
-//    if (!m) {
-//        fprintf(stderr, "Erro ao alocar memória para o membro.\n");
-//        return NULL;
-//    }
-//
-//    while (fread(&m, sizeof(struct membro), 1, archive) == 1) {
-//        printf ("...Procurando...\n");
-//        if (m->uid == uid) {  // Busca pelo uid
-//            printf ("Encontrei um membro com esse uid: %d", m->uid);
-//            return m; // Encontrou, retorna
-//        }
-//    }
-//
-//    free(m); // Não encontrou, libera memória
-//    return NULL;
-//}
+struct membro* busca_membro(int uid, FILE *archive) {
+    if (!archive) {
+        fprintf(stderr, "Arquivo não pode ser lido em busca_membro.\n");
+        return NULL;
+    }
+
+    rewind(archive); // Garante que vamos ler desde o início do arquivo
+
+    struct membro *m = malloc(sizeof(struct membro));
+    if (!m) {
+        fprintf(stderr, "Erro ao alocar memória para o membro.\n");
+        return NULL;
+    }
+
+    while (fread(m, sizeof(struct membro), 1, archive) == 1) {
+        if (m->uid == uid) {  // Busca pelo uid
+            return m; // Encontrou, retorna
+        }
+    }
+
+    free(m); // Não encontrou, libera memória
+    return NULL;
+}
 
 
 // Função para carregar os membros do arquivo para a lista global
@@ -51,16 +49,9 @@ void carregar_membros(char *nome_archive, struct lista_t *lista_membros) {
         }
         *novo_membro = temp_membro;
 
-        printf("Achei esse novo_membro: nome=%s, uid=%d, tam_original=%d, tam_disco=%d, data=%d, ordem=%d, offset=%d, comprimido=%d\n",
-               novo_membro->nome, novo_membro->uid, novo_membro->tam_original,
-               novo_membro->tam_disco, novo_membro->data, novo_membro->ordem,
-               novo_membro->offset, novo_membro->comprimido);
-
         // Insere o membro na lista
         lista_insere(lista_membros, novo_membro->uid, -1);
     }
-
-    
 
     fclose(archive);
 }
@@ -251,24 +242,18 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
             return;
         }
 
+        // Escreve os dados do membro no archive
+        fwrite(novo_membro, sizeof(struct membro), 1, archive);
+
+        // Escreve os dados do arquivo original no archive
         fread(buffer, 1, tam_original, entrada);
         fwrite(buffer, 1, tam_original, archive);
 
         free(buffer);
     }
 
-    // Escreve o membro no arquivo de archive
-    fwrite(novo_membro, sizeof(struct membro), 1, archive);
-
     // Insere o novo membro na lista
     lista_insere(lista_membros, novo_membro->uid, -1); // Insere no final da lista
-
-    printf ("Essa eh a lista de membros (espero ter uid): ");
-    lista_imprime(lista_membros);
-    printf ("\n");
-
-    printf("Inserindo membro: %s, offset: %d, tamanho: %d\n",
-           novo_membro->nome, novo_membro->offset, novo_membro->tam_disco);
 
     limpar(entrada, NULL, archive, NULL);
 
@@ -280,13 +265,13 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
 }
 
 void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros) {
-    printf ("Essa eh a lista de membros dentro de extrair_membro(1): ");
+    printf ("Essa eh a lista de membros dentro de extrair_membro(antes): ");
     lista_imprime(lista_membros);
     printf ("\n");
 
     carregar_membros(nome_archive, lista_membros);
 
-    printf ("Essa eh a lista de membros dentro de extrair_membro(2): ");
+    printf ("Essa eh a lista de membros dentro de extrair_membro(depois): ");
     lista_imprime(lista_membros);
     printf ("\n");
 
@@ -300,6 +285,13 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
     }
 
     while (temp) {
+        struct membro *m = busca_membro(temp->valor, archive);
+        if (m) {
+            membro_atual = m;
+            break;
+        }
+        if (m)
+            free(m);
         temp = temp->prox;
     }
 
