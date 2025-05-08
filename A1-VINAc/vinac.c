@@ -41,16 +41,7 @@ void carregar_membros(char *nome_archive, struct lista_t *lista_membros) {
 
     struct membro temp_membro;
     while (fread(&temp_membro, sizeof(struct membro), 1, archive) == 1) {
-        struct membro *novo_membro = (struct membro *)malloc(sizeof(struct membro));
-        if (!novo_membro) {
-            fprintf(stderr, "Erro ao alocar memória para o membro\n");
-            fclose(archive);
-            return;
-        }
-        *novo_membro = temp_membro;
-
-        // Insere o membro na lista
-        lista_insere(lista_membros, novo_membro->uid, -1);
+        lista_insere(lista_membros, temp_membro.uid, -1);
     }
 
     fclose(archive);
@@ -243,10 +234,10 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
             return;
         }
 
-        // Escreve os dados do membro no archive
+        // Escreve os metadados do membro no archive
         fwrite(novo_membro, sizeof(struct membro), 1, archive);
 
-        // Escreve os dados do arquivo original no archive
+        // Escreve o conteúdo do arquivo original no archive
         fread(buffer, 1, tam_original, entrada);
         fwrite(buffer, 1, tam_original, archive);
 
@@ -287,12 +278,15 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 
     while (temp) {
         struct membro *m = busca_membro(temp->valor, archive);
+        printf ("Nome_arquivo: %s, Nome_encontrado: %s\n", nome_arquivo, m->nome);
         if (m) {
-            membro_atual = m;
-            break;
+            // Verifica se o nome do membro corresponde ao nome do arquivo desejado
+            if (strcmp(m->nome, nome_arquivo) == 0) {
+                membro_atual = m;
+                break;
+            }
+            free(m); // Libera a memória se o membro não for o desejado
         }
-        if (m)
-            free(m);
         temp = temp->prox;
     }
 
