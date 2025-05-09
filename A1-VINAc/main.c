@@ -32,14 +32,16 @@ int main(int argc, char *argv[]) {
             printf("Inserindo membro sem compressão: %s!\n", membro);
             inserir_membro(nome_archive, membro, 0, lista_membros); // 0 = sem compressão
         }
-    } else if (strcmp(opcao, "-ic") == 0 || strcmp(opcao, "-i") == 0) {
+    } 
+    else if (strcmp(opcao, "-ic") == 0 || strcmp(opcao, "-i") == 0) {
         // Inserir membros com compressão
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];
             printf("Inserindo membro com compressão: %s!\n", membro);
             inserir_membro(nome_archive, membro, 1, lista_membros); // 1 = com compressão
         }
-    } else if (strcmp(opcao, "-x") == 0) {
+    } 
+    else if (strcmp(opcao, "-x") == 0) {
         // Extrair membros do archive
         if (argc == 3) {
             // Nenhum membro especificado, extrair todos
@@ -47,17 +49,36 @@ int main(int argc, char *argv[]) {
         } else {
             // Extrair membros específicos
             for (int i = 3; i < argc; i++) {
+                printf ("Extraindo membro: %s!\n", argv[i]);
                 char *membro = argv[i];
                 extrair_membro(nome_archive, membro, lista_membros, 0); // 0 = extrair um específico
             }
         }
-    } else if (strcmp(opcao, "-r") == 0) {
-        // Remover membros do archive
-        for (int i = 3; i < argc; i++) {
-            char *membro = argv[i];
-            remover_membro(nome_archive, membro, lista_membros);
+    } 
+    else if (strcmp(opcao, "-m") == 0) {
+        // Mover membro
+        if (argc < 5) {
+            return 1;
         }
-    } else {
+        printf ("Movendo membro: %s!\n", argv[3]);
+        char *membro = argv[3];
+        char *membro_alvo = argv[4];
+        mover_membro(nome_archive, membro, membro_alvo, lista_membros);
+    } 
+    else if (strcmp(opcao, "-r") == 0) {
+        // Remover membro
+        if (argc < 4) {
+            return 1;
+        }
+        printf ("Removendo membro: %s!\n", argv[3]);
+        char *membro = argv[3];
+        remover_membro(nome_archive, membro, lista_membros);
+    } 
+    else if (strcmp(opcao, "-c") == 0) {
+        // Listar membros do archive
+        listar_conteudo(nome_archive, lista_membros);
+    } 
+    else {
         fprintf(stderr, "Opção inválida: %s\n.", opcao);
         return 1;
     }

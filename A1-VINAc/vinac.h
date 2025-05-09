@@ -24,12 +24,12 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
 void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros, int extrair_todos);
 
 // Removendo os membros da lista encadeada (-r)
-
+void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista_membros);
 
 // Lista o contéudo do archive em ordem (-c)
-
+void listar_conteudo(char *nome_archive, struct lista_t *lista_membros);
 
 // Move o membro para depois do membro especificado em archive (-m membro)
-
+void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros);
 
 #endif

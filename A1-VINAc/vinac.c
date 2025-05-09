@@ -84,11 +84,13 @@ struct lista_t *carregar_membros(FILE *arquivo, struct lista_t *lista_membros) {
             return NULL;
         }
 
+        // Lê os metadados do membro
         if (fread(m, sizeof(struct membro), 1, arquivo) != 1) {
             fprintf(stderr, "Erro ao ler os dados do membro.\n");
             free(m);
             return NULL;
         }
+
         printf("Membro lido: %s, id: %d, Offset: %d, Tamanho: %d\n", m->nome, m->id, m->offset, m->tam_disco);
         lista_insere(lista_membros, m->id, -1);
 
@@ -278,6 +280,18 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
 
         // Lê os dados comprimidos e escreve no arquivo de archive
         fread(buffer_comprimido, 1, tamanho_comprimido, arquivo_comprimido);
+
+        // Atualiza o ID do membro antes de escrever no arquivo
+        novo_membro->id = lista_tamanho(lista_membros); // Atualiza o ID do membro
+
+        // Atualiza o tamanho no disco antes de escrever os metadados
+        novo_membro->tam_disco = tamanho_comprimido;
+        novo_membro->comprimido = 1;
+
+        // Escreve os metadados do membro no archive
+        fwrite(novo_membro, sizeof(struct membro), 1, archive);
+
+        // Escreve os dados comprimidos no archive
         fwrite(buffer_comprimido, 1, tamanho_comprimido, archive);
 
         free(buffer_comprimido);
@@ -431,3 +445,206 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
     fclose(archive);
 }
 
+void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros) {
+    FILE *archive = fopen(nome_archive, "r+b");
+    if (!archive) {
+        fprintf(stderr, "Erro ao abrir o arquivo de archive!\n");
+        return;
+    }
+
+    // Carregar os membros do arquivo para a lista
+    lista_membros = carregar_membros(archive, lista_membros);
+    if (!lista_membros) {
+        fprintf(stderr, "Erro: Nenhum membro encontrado no archive.\n");
+        fclose(archive);
+        return;
+    }
+
+    // Localizar o membro a ser movido
+    struct membro *membro_a_mover = NULL;
+    struct item_t *temp = lista_membros->prim;
+    while (temp) {
+        struct membro *m = busca_membro(temp->valor, archive);
+        if (m && strcmp(m->nome, nome_membro) == 0) {
+            membro_a_mover = m;
+            break;
+        }
+        temp = temp->prox;
+    }
+
+    if (!membro_a_mover) {
+        fprintf(stderr, "Membro %s não encontrado no archive.\n", nome_membro);
+        fclose(archive);
+        return;
+    }
+
+    // Localizar o membro alvo (target)
+    struct membro *membro_target = NULL;
+    if (nome_target) {
+        temp = lista_membros->prim;
+        while (temp) {
+            struct membro *m = busca_membro(temp->valor, archive);
+            if (m && strcmp(m->nome, nome_target) == 0) {
+                membro_target = m;
+                break;
+            }
+            temp = temp->prox;
+        }
+
+        if (!membro_target) {
+            fprintf(stderr, "Membro alvo %s não encontrado no archive.\n", nome_target);
+            fclose(archive);
+            return;
+        }
+    }
+
+    printf("\n");
+    printf("Membro a mover=%s\n", membro_a_mover->nome);
+    printf("Membro alvo=%s\n", membro_target->nome);
+    printf("\n");
+
+    // Realizar a movimentação
+    printf("Movendo membro %s para depois de %s...\n", nome_membro, nome_target);
+
+    // Implementar ainda
+    // Essa função será a junção das funções inserir_membro e remover_membro
+
+    printf("Membro %s movido com sucesso!\n", nome_membro);
+
+    fclose(archive);
+}
+
+void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista_membros) {
+    FILE *archive = fopen(nome_archive, "r+b");
+    if (!archive) {
+        fprintf(stderr, "Erro ao abrir o arquivo de archive!\n");
+        return;
+    }
+
+    // Carregando os membros 
+    lista_membros = carregar_membros(archive, lista_membros);
+    if (!lista_membros) {
+        fprintf(stderr, "Erro: Nenhum membro encontrado no archive.\n");
+        fclose(archive);
+        return;
+    }
+
+    // Localizando o membro a ser removido
+    struct membro *membro_a_remover = NULL;
+    struct item_t *temp = lista_membros->prim;
+    while (temp) {
+        struct membro *m = busca_membro(temp->valor, archive);
+        if (m && strcmp(m->nome, nome_membro) == 0) {
+            membro_a_remover = m;
+            break;
+        }
+        temp = temp->prox;
+    }
+
+    if (!membro_a_remover) {
+        fprintf(stderr, "Membro %s não encontrado no archive.\n", nome_membro);
+        fclose(archive);
+        return;
+    }
+
+    printf("Removendo membro %s...\n", membro_a_remover->nome);
+
+    // Criando um arquivo temporário para reorganizar os dados
+    FILE *temp_archive = fopen("temp_archive.bin", "wb");
+    if (!temp_archive) {
+        fprintf(stderr, "Erro ao criar arquivo temporário para reorganização.\n");
+        free(membro_a_remover);
+        fclose(archive);
+        return;
+    }
+
+    // Reescrevendo os membros no novo arquivo, tirando o que será removido
+    rewind(archive);
+    int membros;
+    fread(&membros, sizeof(int), 1, archive);
+    int novos_membros = membros - 1;
+    fwrite(&novos_membros, sizeof(int), 1, temp_archive);
+
+    struct membro *m = (struct membro *)malloc(sizeof(struct membro));
+    if (!m) {
+        fprintf(stderr, "Erro ao alocar memória para struct membro.\n");
+        fclose(temp_archive);
+        fclose(archive);
+        free(membro_a_remover);
+        return;
+    }
+
+    for (int i = 0; i < membros; i++) {
+        fread(m, sizeof(struct membro), 1, archive);
+
+        if (strcmp(m->nome, membro_a_remover->nome) == 0) {
+            // Pula os dados do membro a ser removido
+            fseek(archive, m->tam_disco, SEEK_CUR);
+            continue;
+        }
+
+        // Atualizando o offset no novo arquivo
+        m->offset = ftell(temp_archive) + sizeof(struct membro);
+        fwrite(m, sizeof(struct membro), 1, temp_archive);
+
+        // Copiando os dados do membro
+        unsigned char *buffer = (unsigned char *)malloc(m->tam_disco);
+        if (!buffer) {
+            fprintf(stderr, "Erro ao alocar memória para o buffer.\n");
+            fclose(temp_archive);
+            fclose(archive);
+            free(m);
+            free(membro_a_remover);
+            return;
+        }
+        fread(buffer, 1, m->tam_disco, archive);
+        fwrite(buffer, 1, m->tam_disco, temp_archive);
+        free(buffer);
+    }
+
+    free(m);
+
+    fclose(archive);
+    fclose(temp_archive);
+
+    // Substituindo o arquivo original pelo temporário
+    remove(nome_archive);
+    rename("temp_archive.bin", nome_archive);
+
+    // Atualizando a lista de membros
+    lista_retira(lista_membros, &membro_a_remover->id, lista_procura(lista_membros, membro_a_remover->id));
+
+    printf("Membro %s removido com sucesso!\n", membro_a_remover->nome);
+    free(membro_a_remover);
+}
+
+void listar_conteudo(char *nome_archive, struct lista_t *lista_membros) {
+    FILE *archive = fopen(nome_archive, "rb");
+    if (!archive) {
+        fprintf(stderr, "Erro ao abrir o arquivo de archive!\n");
+        return;
+    }
+
+    // Carregando os membros do arquivo para a lista
+    lista_membros = carregar_membros(archive, lista_membros);
+    if (!lista_membros) {
+        fprintf(stderr, "Erro: Nenhum membro encontrado no archive.\n");
+        fclose(archive);
+        return;
+    }
+
+    printf("Conteúdo do archive '%s':\n", nome_archive);
+
+    struct item_t *temp = lista_membros->prim;
+    while (temp) {
+        struct membro *m = busca_membro(temp->valor, archive);
+        if (m) {
+            printf("Nome: %s, UID: %d, Tamanho Original: %d, Tamanho Disco: %d, Data: %d\n",
+                   m->nome, m->uid, m->tam_original, m->tam_disco, m->data);
+            free(m);
+        }
+        temp = temp->prox;
+    }
+
+    fclose(archive);
+}
