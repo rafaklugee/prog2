@@ -6,6 +6,7 @@
 
 struct membro {
     char nome[50];
+    int id;
     int uid;
     int tam_original;
     int tam_disco;

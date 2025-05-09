@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
         // Extrair membros do archive
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];
-            printf("Extraindo membro %s do archive!\n", membro);
+            //printf("Extraindo membro %s do archive!\n", membro);
             extrair_membro(nome_archive, membro, lista_membros);
         }
     } else {
