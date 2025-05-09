@@ -328,115 +328,106 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
     limpar(entrada, NULL, archive, NULL);
 }
 
-void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros) {
+void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros, int extrair_todos) {
     FILE *archive = fopen(nome_archive, "rb");
     if (!archive) {
         fprintf(stderr, "Erro ao abrir o arquivo de archive!\n");
         return;
     }
-    
-    printf("\n\nIniciando extracao do membro %s\n\n", nome_arquivo);
 
-    printf("Essa eh a lista de membros (antes) de extrair_membro: ");
-    lista_imprime(lista_membros);
-    printf("\n");
+    printf("Iniciando extração do(s) membro(s) do arquivo %s...\n", nome_archive);
 
     // Verifica se a lista já foi carregada
     if (lista_membros->prim == NULL) {
         printf("Carregando membros do arquivo...\n");
         lista_membros = carregar_membros(archive, lista_membros);
-    } else {
-        printf("Lista de membros já carregada, pulando recarregamento.\n");
+        if (!lista_membros) {
+            fprintf(stderr, "Erro ao carregar os membros do arquivo.\n");
+            fclose(archive);
+            return;
+        }
     }
 
-    printf("Essa eh a lista de membros (depois) de extrair_membro: ");
-    lista_imprime(lista_membros);
-    printf("\n");
-
     struct item_t *temp = lista_membros->prim;
-    struct membro *membro_atual = NULL;
-
     while (temp) {
         struct membro *m = busca_membro(temp->valor, archive);
         if (m) {
-            printf("Nome_arquivo: %s, Nome_encontrado: %s\n", nome_arquivo, m->nome);
+            // Se não for para extrair todos, verifica se o nome corresponde
+            if (!extrair_todos && strcmp(m->nome, nome_arquivo) != 0) {
+                free(m);
+                temp = temp->prox;
+                continue;
+            }
 
-            // Verifica se o nome do membro corresponde ao nome do arquivo desejado
-            if (strcmp(m->nome, nome_arquivo) == 0) {
-                // Verifica se o arquivo já foi extraído
-                struct stat st;
-                if (stat(nome_arquivo, &st) == 0) {
-                    printf("Arquivo %s já foi extraído, pulando...\n", nome_arquivo);
-                    free(m); // Libera a memória do membro
-                    temp = temp->prox;
-                    continue; // Pula para o próximo membro
+            // Verifica se o arquivo já foi extraído
+            struct stat st;
+            if (stat(m->nome, &st) == 0) {
+                printf("Arquivo %s já foi extraído, pulando...\n", m->nome);
+                free(m);
+                temp = temp->prox;
+                if (!extrair_todos) 
+                    break; // Sai do laço se não for para extrair todos
+                continue;
+            }
+
+            // Cria o arquivo de saída
+            FILE *saida = fopen(m->nome, "wb");
+            if (!saida) {
+                fprintf(stderr, "Erro ao criar o arquivo de saída %s\n", m->nome);
+                free(m);
+                fclose(archive);
+                return;
+            }
+
+            fseek(archive, m->offset, SEEK_SET); // Posiciona no início dos dados do membro
+
+            if (m->comprimido) {
+                if (descomprimir_arquivo(saida, archive, m->tam_original, m->tam_disco) < 0) {
+                    fprintf(stderr, "Erro ao descomprimir o arquivo %s\n", m->nome);
+                }
+            } else {
+                unsigned char *buffer = (unsigned char *)malloc(m->tam_original);
+                if (!buffer) {
+                    fprintf(stderr, "Erro ao alocar memória para o buffer\n");
+                    fclose(saida);
+                    free(m);
+                    fclose(archive);
+                    return;
                 }
 
-                membro_atual = m;
-                break;
+                size_t lidos = fread(buffer, 1, m->tam_original, archive);
+                if (lidos != (size_t)m->tam_original) {
+                    fprintf(stderr, "Erro ao ler dados do arquivo (esperado: %d, lido: %zu)\n", m->tam_original, lidos);
+                    free(buffer);
+                    fclose(saida);
+                    free(m);
+                    fclose(archive);
+                    return;
+                }
+
+                size_t escritos = fwrite(buffer, 1, m->tam_original, saida);
+                if (escritos != (size_t)m->tam_original) {
+                    fprintf(stderr, "Erro ao escrever dados no arquivo de saída (esperado: %d, escrito: %zu)\n", m->tam_original, escritos);
+                    free(buffer);
+                    fclose(saida);
+                    free(m);
+                    fclose(archive);
+                    return;
+                }
+
+                free(buffer);
             }
-            free(m); // Libera a memória se o membro não for o desejado
+
+            printf("Membro %s extraído com sucesso!\n", m->nome);
+            free(m);
+            fclose(saida);
+
+            if (!extrair_todos) 
+                break;
         }
         temp = temp->prox;
     }
 
-    if (!membro_atual) {
-        fprintf(stderr, "Arquivo %s não encontrado no archive ou já foi extraído.\n", nome_arquivo);
-        fclose(archive);
-        return;
-    }
-
-    FILE *saida = fopen(nome_arquivo, "wb");
-    if (!saida) {
-        fprintf(stderr, "Erro ao criar o arquivo de saída %s\n", nome_arquivo);
-        free(membro_atual); // Libera a memória do membro encontrado
-        fclose(archive);
-        return;
-    }
-
-    fseek(archive, membro_atual->offset, SEEK_SET); // Posiciona no início dos dados do membro
-
-    if (membro_atual->comprimido) {
-        if (descomprimir_arquivo(saida, archive, membro_atual->tam_original, membro_atual->tam_disco) < 0) {
-            fprintf(stderr, "Erro ao descomprimir o arquivo %s\n", nome_arquivo);
-        }
-    } else {
-        unsigned char *buffer = (unsigned char *)malloc(membro_atual->tam_original);
-        if (!buffer) {
-            fprintf(stderr, "Erro ao alocar memória para o buffer\n");
-            fclose(saida);
-            free(membro_atual); // Libera a memória do membro encontrado
-            fclose(archive);
-            return;
-        }
-
-        size_t lidos = fread(buffer, 1, membro_atual->tam_original, archive);
-        if (lidos != (size_t)membro_atual->tam_original) {
-            fprintf(stderr, "Erro ao ler dados do arquivo (esperado: %d, lido: %zu)\n", membro_atual->tam_original, lidos);
-            free(buffer);
-            fclose(saida);
-            free(membro_atual); // Libera a memória do membro encontrado
-            fclose(archive);
-            return;
-        }
-
-        size_t escritos = fwrite(buffer, 1, membro_atual->tam_original, saida);
-        if (escritos != (size_t)membro_atual->tam_original) {
-            fprintf(stderr, "Erro ao escrever dados no arquivo de saída (esperado: %d, escrito: %zu)\n", membro_atual->tam_original, escritos);
-            free(buffer);
-            fclose(saida);
-            free(membro_atual); // Libera a memória do membro encontrado
-            fclose(archive);
-            return;
-        }
-
-        free(buffer);
-    }
-
-    printf("\n\nMembro %s extraído com sucesso!\n\n", membro_atual->nome);
-
-    free(membro_atual); // Libera a memória do membro encontrado
-    fclose(saida);
     fclose(archive);
 }
 

@@ -21,15 +21,15 @@ struct membro {
 void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, struct lista_t *lista_membros);
 
 // Extraindo o membro da lista encadeada (-x)
-void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros);
+void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros, int extrair_todos);
 
 // Removendo os membros da lista encadeada (-r)
-void remove_membro (char *nome_arquivo);
+
 
 // Lista o contéudo do archive em ordem (-c)
-void listar_conteudo (char *nome_arquivo);
+
 
 // Move o membro para depois do membro especificado em archive (-m membro)
-void mover_membro (char *nome_arquivo, struct membro *membro);
+
 
 #endif

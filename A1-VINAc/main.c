@@ -41,10 +41,21 @@ int main(int argc, char *argv[]) {
         }
     } else if (strcmp(opcao, "-x") == 0) {
         // Extrair membros do archive
+        if (argc == 3) {
+            // Nenhum membro especificado, extrair todos
+            extrair_membro(nome_archive, NULL, lista_membros, 1); // 1 = extrair todos
+        } else {
+            // Extrair membros específicos
+            for (int i = 3; i < argc; i++) {
+                char *membro = argv[i];
+                extrair_membro(nome_archive, membro, lista_membros, 0); // 0 = extrair um específico
+            }
+        }
+    } else if (strcmp(opcao, "-r") == 0) {
+        // Remover membros do archive
         for (int i = 3; i < argc; i++) {
             char *membro = argv[i];
-            //printf("Extraindo membro %s do archive!\n", membro);
-            extrair_membro(nome_archive, membro, lista_membros);
+            remover_membro(nome_archive, membro, lista_membros);
         }
     } else {
         fprintf(stderr, "Opção inválida: %s\n.", opcao);
