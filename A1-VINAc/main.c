@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
     else if (strcmp(opcao, "-x") == 0) {
         if (argc == 3) {
             // Nenhum membro especificado, extrair todos
+            printf("Extraindo todos os membros!\n");
             extrair_membro(nome_archive, NULL, lista_membros, 1);
         } else {
             // Extrair membros específicos
@@ -79,6 +80,7 @@ int main(int argc, char *argv[]) {
 
     // Listar membros
     else if (strcmp(opcao, "-c") == 0) {
+        printf("Conteúdo do archive '%s':\n", nome_archive);
         listar_conteudo(nome_archive, lista_membros);
     }
 

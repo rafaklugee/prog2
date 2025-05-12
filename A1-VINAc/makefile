@@ -1,12 +1,17 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -g -std=c99
-TARGET = vinac
+TARGET = vina
 OBJS = main.o lz.o lista.o vinac.o
+OUT_DIR = rrk24
+OUT_TARGET = $(OUT_DIR)/$(TARGET)
 
-all: $(TARGET)
+all: $(OUT_DIR) $(OUT_TARGET)
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
+$(OUT_DIR):
+	mkdir -p $(OUT_DIR)
+
+$(OUT_TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $(OUT_TARGET) $(OBJS)
 
 main.o: main.c vinac.h lista.h
 	$(CC) $(CFLAGS) -c main.c
@@ -20,5 +25,7 @@ lz.o: lz.c lz.h
 lista.o: lista.c lista.h
 	$(CC) $(CFLAGS) -c lista.c
 
+# Dessa maneira para não remover os arquivos de teste do diretório
 clean:
-	rm -f $(TARGET) $(OBJS) *.vc
+	rm -f $(OUT_TARGET) $(OBJS) *.vc
+	find $(OUT_DIR) -maxdepth 1 -type f -exec rm -f {} \;

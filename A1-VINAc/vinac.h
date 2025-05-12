@@ -14,7 +14,6 @@ struct membro {
     int ordem;
     int offset;
     int comprimido;
-    struct membro *prox;
 };
 
 // Inserindo o membro na lista encadeada (-ip e -ic)
@@ -23,13 +22,13 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
 // Extraindo o membro da lista encadeada (-x)
 void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros, int extrair_todos);
 
+// Move o membro para depois do membro especificado em archive (-m membro)
+void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros);
+
 // Removendo os membros da lista encadeada (-r)
 void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista_membros);
 
 // Lista o contéudo do archive em ordem (-c)
 void listar_conteudo(char *nome_archive, struct lista_t *lista_membros);
-
-// Move o membro para depois do membro especificado em archive (-m membro)
-void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros);
 
 #endif
