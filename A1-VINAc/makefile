@@ -25,7 +25,5 @@ lz.o: lz.c lz.h
 lista.o: lista.c lista.h
 	$(CC) $(CFLAGS) -c lista.c
 
-# Dessa maneira para não remover os arquivos de teste do diretório
 clean:
-	rm -f $(OUT_TARGET) $(OBJS) *.vc
-	find $(OUT_DIR) -maxdepth 1 -type f -exec rm -f {} \;
+	rm -f $(OUT_TARGET) $(OBJS)
