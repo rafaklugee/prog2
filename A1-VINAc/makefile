@@ -27,3 +27,5 @@ lista.o: lista.c lista.h
 
 clean:
 	rm -f $(OUT_TARGET) $(OBJS)
+
+	

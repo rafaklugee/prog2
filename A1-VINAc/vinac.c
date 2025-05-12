@@ -7,67 +7,112 @@
 #include "lista.h"
 
 struct membro* busca_membro(int id, FILE *archive) {
-    if (!archive) {
+    if (!archive)
         return NULL;
-    }
 
-    // Garantindo que o arquivo será lido do início
     rewind(archive);
 
     // Pula o número de membros, que está no início do archive
     int membros;
-    if (fread(&membros, sizeof(int), 1, archive) != 1)
+    if (fread(&membros, sizeof(int), 1, archive) != 1) {
         return NULL;
-
-    struct membro *m = malloc(sizeof(struct membro));
-    if (!m)
-        return NULL;
-
-    // Lê os membros e busca pelo id
-    while (fread(m, sizeof(struct membro), 1, archive) == 1) {
-        // Se o id for igual, achou o membro
-        if (m->id == id) {
-            return m;
-        }
-
-        // Pula os dados do membro achado no arquivo
-        if (fseek(archive, m->tam_disco, SEEK_CUR) != 0) {
-            free(m);
-            return NULL;
-        }
     }
 
-    free(m);
+    struct membro *primeiro = NULL;
+    struct membro *anterior = NULL;
+
+    // Lê os membros e busca pelo id
+    for (int i = 0; i < membros; i++) {
+        struct membro *atual = malloc(sizeof(struct membro));
+        if (!atual) {
+            return NULL;
+        }
+
+        if (fread(atual, sizeof(struct membro), 1, archive) != 1) {
+            free(atual);
+            return NULL;
+        }
+
+        // Atualiza os ponteiros do membro
+        atual->ant = anterior;
+        atual->prox = NULL;
+
+        if (anterior) {
+            anterior->prox = atual;
+        } else {
+            primeiro = atual;
+        }
+
+        // Se o id for igual, retorna o membro
+        if (atual->id == id) {
+            return atual;
+        }
+
+        // Pula os dados do membro no arquivo
+        if (fseek(archive, atual->tam_disco, SEEK_CUR) != 0) {
+            free(atual);
+            return NULL;
+        }
+
+        anterior = atual;
+    }
+
+    // Libera todos os membros alocados
+    struct membro *temp = primeiro;
+    while (temp) {
+        struct membro *prox = temp->prox;
+        free(temp);
+        temp = prox;
+    }
+
     return NULL;
 }
 
 
 // Função para carregar os membros do arquivo (popular a lista)
 struct lista_t *carregar_membros(FILE *arquivo, struct lista_t *lista_membros) {
-    if (!arquivo)
+    if (!arquivo || !lista_membros) {
         return NULL;
-
-    int membros;
-    if (fread(&membros, sizeof(int), 1, arquivo) != 1 || membros <= 0)
-        return NULL;
-
-    for (int i = 0; i < membros; i++) {
-        // Não vou usar alocação dinâmica pois só uso o id de membro
-        struct membro m;
-
-        // Lê os metadados diretamente em uma variável da pilha
-        if (fread(&m, sizeof(struct membro), 1, arquivo) != 1)
-            return NULL;
-
-        // Insere apenas o ID na lista
-        if (!lista_insere(lista_membros, m.id, -1))
-            return NULL;
-
-        // Pula os dados do arquivo
-        if (fseek(arquivo, m.tam_disco, SEEK_CUR) != 0)
-            return NULL;
     }
 
+    rewind(arquivo);
+
+    int qtd_membros;
+    if (fread(&qtd_membros, sizeof(int), 1, arquivo) != 1 || qtd_membros <= 0) {
+        return NULL;
+    }
+
+    struct membro *anterior = NULL;
+
+    for (int i = 0; i < qtd_membros; i++) {
+        struct membro *m = malloc(sizeof(struct membro));
+        if (!m) return NULL;
+
+        if (fread(m, sizeof(struct membro), 1, arquivo) != 1) {
+            free(m);
+            return NULL;
+        }
+
+        m->ant = anterior;
+        m->prox = NULL;
+
+        if (anterior)
+            anterior->prox = m;
+
+        // Insere na lista de IDs
+        if (!lista_insere(lista_membros, m->id, -1)) {
+            free(m);
+            return NULL;
+        }
+
+        // Pula os dados do membro
+        if (fseek(arquivo, m->tam_disco, SEEK_CUR) != 0) {
+            free(m);
+            return NULL;
+        }
+
+        anterior = m;
+    }
     return lista_membros;
 }
 
@@ -95,6 +140,7 @@ int comprimir_arquivo(FILE *entrada, FILE *arquivo_comprimido, int tam_original,
 
     // Escreve o buffer comprimido no arquivo de saída
     fwrite(buffer_out, 1, *tamanho_comprimido, arquivo_comprimido);
+
     free(buffer_in);
     free(buffer_out);
 
@@ -161,6 +207,7 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
         }
         fclose(archive_temp);
     }
+
     lista_destroi(temp_lista);
 
     FILE *archive = fopen(nome_archive, "r+b");
@@ -394,58 +441,76 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 
 void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros) {
     FILE *archive = fopen(nome_archive, "r+b");
-    if (!archive)
+    if (!archive) 
         return;
 
-    // Carregando os membros do archive para a lista
     lista_membros = carregar_membros(archive, lista_membros);
-    if (!lista_membros) {
+    if (!lista_membros || lista_membros->tamanho <= 1) {
         fclose(archive);
         return;
     }
 
-    // Localizando o membro a ser movido
-    struct membro *membro_a_mover = NULL;
-    struct item_t *temp = lista_membros->prim;
-    while (temp) {
-        struct membro *m = busca_membro(temp->valor, archive);
-        if (m && strcmp(m->nome, nome_membro) == 0) {
-            membro_a_mover = m;
-            break;
-        }
-        temp = temp->prox;
+    // Localizar ponteiros diretos para os membros
+    struct item_t *item = lista_membros->prim;
+    struct item_t *a_mover_item = NULL, *target_item = NULL;
+
+    while (item) {
+        struct membro *m = busca_membro(item->valor, archive);
+        if (strcmp(m->nome, nome_membro) == 0)
+            a_mover_item = item;
+        if (strcmp(m->nome, nome_target) == 0)
+            target_item = item;
+        item = item->prox;
     }
 
-    if (!membro_a_mover) {
+    if (!a_mover_item || !target_item) {
         fclose(archive);
         return;
     }
 
-    // Localizar o membro target
-    struct membro *membro_target = NULL;
-    if (nome_target) {
-        temp = lista_membros->prim;
-        while (temp) {
-            struct membro *m = busca_membro(temp->valor, archive);
-            if (m && strcmp(m->nome, nome_target) == 0) {
-                membro_target = m;
-                break;
-            }
-            temp = temp->prox;
-        }
-
-        if (!membro_target) {
-            free(membro_a_mover);
-            fclose(archive);
-            return;
-        }
+    if (a_mover_item == target_item) {
+        fclose(archive);
+        return;
     }
 
+    // Remover item da posição original
+    int id_mover = a_mover_item->valor;
+    lista_retira(lista_membros, &id_mover, lista_procura(lista_membros, id_mover));
 
-    // Não implementada ainda
-    // Implementar utilizando remover_membro e inserir_membro
+    // Inserir item na lista
+    int pos_target = lista_procura(lista_membros, target_item->valor);
+    lista_insere(lista_membros, id_mover, pos_target);
+
+    // Escrever no arquivo temporário
+    FILE *temp = fopen("temp_archive.bin", "wb+");
+    if (!temp) {
+        fclose(archive);
+        return;
+    }
+
+    int total = lista_tamanho(lista_membros);
+    fwrite(&total, sizeof(int), 1, temp);
+
+    struct item_t *atual = lista_membros->prim;
+    while (atual) {
+        struct membro *m = busca_membro(atual->valor, archive);
+        m->offset = ftell(temp) + sizeof(struct membro);
+        fwrite(m, sizeof(struct membro), 1, temp);
+
+        unsigned char *buffer = malloc(m->tam_disco);
+        fseek(archive, m->offset, SEEK_SET);
+        fread(buffer, 1, m->tam_disco, archive);
+        fwrite(buffer, 1, m->tam_disco, temp);
+        free(buffer);
+        free(m);
+        atual = atual->prox;
+    }
 
     fclose(archive);
+    fclose(temp);
+
+    remove(nome_archive);
+    rename("temp_archive.bin", nome_archive);
 }
 
 void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista_membros) {

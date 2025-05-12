@@ -14,6 +14,8 @@ struct membro {
     int ordem;
     int offset;
     int comprimido;
+    struct membro *prox;
+    struct membro *ant;
 };
 
 // Inserindo o membro na lista encadeada (-ip e -ic)

@@ -106,12 +106,9 @@ README.md:
     "vina", eles não serão sobreescritos, aparecerá que os arquivos já existem. Caso queiramos testar a extração,
     seria importante remover os arquivos originais do diretório presente logo após a inserção.
 
-- O programa não possui vazamentos de memória.
-
-- Uma dificuldade encontrada, foi a função mover_membro. Pois para implementá-la, é necessário ponteiros entre todos
-    os membros, algo que não estava sendo implementado, pois foi utilizada a lógica de busca por IDs na lista
-    encadeada. Todas as outras funções foram possíves fazer dessa maneira, mas infelizmente não foi achado um jeito
-    de implementar a função mover_membro.
+- Uma dificuldade encontrada, foi a função mover_membro. Pois para implementá-la, é necessário muitas mudanças de
+    posição dentro do archive, buscar da lista posições e criar um arquivos temporários. Por ser muito complexa,
+    ela possui alguns problemas, que serão citados logo em seguida.
 
 # Bugs conhecidos
 - A função de inserção consegue lidar com apenas uma linha de comando. Por exemplo, se eu insiro vários arquivos
@@ -121,7 +118,7 @@ README.md:
 - Isso também vale para quando eu vou inserir um arquivo já existente dentro de um .vc. Ele substitui o arquivo corretamente,
     mas como inserimos outro membro dentro de um .vc já existente, sua manipulação fica comprometida após a ação.
  
-- A função mover_membro não funciona corretamente. Foram feitos diversos debugs com a finalidade de descobrir os erros do
-    código, mas todos resultavam em diferentes coisas, como: não mover nada, mover mas remover os arquivos que foram
-    ultrapassados, ficar só o arquivo "a ser movido" no archive. Foram tentadas diversas implementações diferentes também. 
-    Foi deixada o código que parecia ser mais convencional.
+- A função mover_membro move seus membros corretamente, podemos ver isso após movermos um membro e exibirmos com -c.
+    Porém, ela deixa o archive desconfigurado, comprometendo sua manipulação. Por exemplo, se formos extrair os 
+    arquivos de um archive após membros terem sido movidos, eles virão desconfigurados. Porém, se formos listar
+    seu conteúdo, será feito com sucesso
