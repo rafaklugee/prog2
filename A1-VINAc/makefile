@@ -26,6 +26,7 @@ lista.o: lista.c lista.h
 	$(CC) $(CFLAGS) -c lista.c
 
 clean:
-	rm -f $(OUT_TARGET) $(OBJS)
+	rm -f $(OUT_TARGET) $(OBJS) *.vc
+	find $(OUT_DIR) -maxdepth 1 -type f -exec rm -f {} \;
 
 	

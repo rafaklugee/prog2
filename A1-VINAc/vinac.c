@@ -7,7 +7,7 @@
 #include "lista.h"
 
 // Essa função busca algum membro e o retorna. A função que utiliza que verá se é o membro que ela quer
-// Enquanto ela faz essa busca, ela atualiza os ponteiros de quem ela está buscando -> Isso é preciso ?
+// Enquanto ela faz essa busca, ela atualiza os ponteiros de quem ela está buscando -> Isso é preciso ? Não!
 struct membro* busca_membro(int id, FILE *archive) {
     if (!archive)
         return NULL;
@@ -20,9 +20,6 @@ struct membro* busca_membro(int id, FILE *archive) {
     if (fread(&membros, sizeof(int), 1, archive) != 1) {
         return NULL;
     }
-
-    struct membro *primeiro = NULL;
-    struct membro *anterior = NULL;
 
     // Lê os membros e busca pelo id
     for (int i = 0; i < membros; i++) {
@@ -37,19 +34,6 @@ struct membro* busca_membro(int id, FILE *archive) {
             return NULL;
         }
 
-        // Quando ele acha um membro, atualiza seus ponteiros
-        // anterior <- atual -> prox(null)
-        atual->ant = anterior;
-        atual->prox = NULL;
-
-        // Se houver um anterior, atualiza o ponteiro do anterior. Caso contrário, ele é o primeiro elemento
-        if (anterior) {
-            // anterior <-> atual -> prox // atual(anterior)<-> prox(atual) -> prox(prox)
-            anterior->prox = atual;
-        } else {
-            primeiro = atual;
-        }
-
         // Se o id for igual, retorna o membro
         if (atual->id == id) {
             return atual;
@@ -61,16 +45,7 @@ struct membro* busca_membro(int id, FILE *archive) {
             return NULL;
         }
 
-        // Agora sim, inicializei o anterior
-        anterior = atual;
-    }
-
-    // Libera todos os membros alocados
-    struct membro *temp = primeiro;
-    while (temp) {
-        struct membro *prox = temp->prox;
-        free(temp);
-        temp = prox;
+        free(atual);
     }
 
     return NULL;
@@ -129,6 +104,7 @@ struct lista_t *carregar_membros(FILE *arquivo, struct lista_t *lista_membros) {
 
         // Agora sim, o membro atual virou o anterior (não é mais a primeira iteração)
         anterior = m;
+        free(m);
     }
 
     // Retorna a lista de membros com o id de cada um e os membros com seus ponteiros ant e prox corretos
@@ -137,7 +113,7 @@ struct lista_t *carregar_membros(FILE *arquivo, struct lista_t *lista_membros) {
 
 int comprimir_arquivo(FILE *entrada, FILE *arquivo_comprimido, int tam_original, int *tamanho_comprimido) {
     // Para que eu preciso de buffers ? Não posso apenas passar meus arquivos originais ?
-    // Isso deve ter haver com as funções do lz, de comprimir e descomprimir
+    // Isso deve ter haver com as funções do lz, de comprimir e descomprimir -> Sim! Essas funções trabalham com blocos de memória, não arquivos
 
     // Alocando meu buffer de entrada, ele tem o tamanho original do meu arquivo
     unsigned char *buffer_in = (unsigned char *)malloc(tam_original);
@@ -530,8 +506,6 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 }
 
 void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros) {
-    // Preciso revisar essa função! Não entendi como ela move meu membro manipulando um novo arquivo binário e o substituindo depois
-
     // Abro meu archive
     FILE *archive = fopen(nome_archive, "r+b");
     if (!archive) 
@@ -550,13 +524,14 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
     struct item_t *target_item = NULL;
 
     // Enquanto eu tenho um membros na lisa, vou buscá-los e identificar o membro a mover e o target
-    // Vou guardar eles nas minhas variáveis
+    // Vou guardar eles nas minhas variáveis a_mover_item e target_item
     while (item) {
         struct membro *m = busca_membro(item->valor, archive);
         if (strcmp(m->nome, nome_membro) == 0)
             a_mover_item = item;
         if (strcmp(m->nome, nome_target) == 0)
             target_item = item;
+        free(m);
         item = item->prox;
     }
 
@@ -577,6 +552,8 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
     lista_retira(lista_membros, &id_mover, lista_procura(lista_membros, id_mover));
 
     // Insiro o id do meu arquivo a mover depois de target
+    // Aqui é um ponto crucial: eu apenas movo o id do membro, depois insiro todos eles novamente
+    // Será que o erro de ficar bagunçado não está aqui ?
     int pos_target = lista_procura(lista_membros, target_item->valor);
     lista_insere(lista_membros, id_mover, pos_target);
 
@@ -588,6 +565,7 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
     }
 
     // Pego o tamanho da minha lista e escrevo no meu binário aberto (no começo de temp)
+    // O cursor vai pra depois dessa escrita
     int total = lista_tamanho(lista_membros);
     fwrite(&total, sizeof(int), 1, temp);
 
@@ -597,17 +575,23 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
         struct membro *m = busca_membro(atual->valor, archive);
         // O offset desse membro vai ser a posição do cursor de temp + o tamanho da struct membro
         m->offset = ftell(temp) + sizeof(struct membro);
-        // Escrevo no meu binário temp esse membro
+        // Escrevo no meu binário temp a struct desse membro (estrutura do membro)
         fwrite(m, sizeof(struct membro), 1, temp);
 
         // Aloco um buffer do tamanho do membro atual
         unsigned char *buffer = malloc(m->tam_disco);
+        if (!buffer) {
+            fclose(temp);
+            fclose(archive);
+            free(m);
+            return;
+        }
         // Movo o cursor para o começo do meu membro atual em archive! (não no binário)
         fseek(archive, m->offset, SEEK_SET);
-        // Armazeno no meu buffer o tamanho do meu membro atual que está em archive
-        fread(buffer, 1, m->tam_disco, archive);
-        // Escrevo no meu binário temp o tamanho do disco do meu membro atual
-        fwrite(buffer, 1, m->tam_disco, temp);
+        // Armazeno no meu buffer os dados do meu membro atual que está em archive
+        size_t lidos = fread(buffer, 1, m->tam_disco, archive);
+        // Escrevo no meu binário temp os dados do meu membro atual
+        fwrite(buffer, 1, lidos, temp);
 
         // Libero o buffer e o membro atual
         free(buffer);
@@ -702,7 +686,7 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
         // Se não for o membro que quero remover
         // O novo offset do membro vai ser a posição do cursor + o tamanho da struct membro
         m->offset = ftell(temp_archive) + sizeof(struct membro);
-        // Vou escrever em temp_archive meu membro, agora com um novo offset
+        // Vou escrever em temp_archive meu membro (struct membro), agora com um novo offset
         fwrite(m, sizeof(struct membro), 1, temp_archive);
 
         // Alocando um buffer do tamanho do membro atual
@@ -716,11 +700,10 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
         }
 
         // Vou armazenar em um buffer o tamanho do membro lido
-        fread(buffer, 1, m->tam_disco, archive);
-        // Vou escrever em archive o tamanho do meu novo membro
-        fwrite(buffer, 1, m->tam_disco, temp_archive);
-        // Talvez não dê certo porque eu não precise escrever isso no meu binário,
-        // tem que ver a posição do cursor (?)
+        size_t lidos = fread(buffer, 1, m->tam_disco, archive);
+        // Vou escrever em archive os dados do meu novo membro
+        fwrite(buffer, 1, lidos, temp_archive);
+
         free(buffer);
     }
 
@@ -732,6 +715,7 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
     fclose(temp_archive);
 
     // Removo o meu archive e renomeio meu binário modificado com seu nome
+    // Pode estar aqui o erro será ?
     remove(nome_archive);
     rename("temp_archive.bin", nome_archive);
 
