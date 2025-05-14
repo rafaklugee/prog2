@@ -225,6 +225,7 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
     FILE *archive = fopen(nome_archive, "r+b");
     if (!archive) {
         // Se ele não existir, eu vou criar um archive com o nome passado pela linha de comando
+        // Será que por isso que depois que tenho abrir ele novamente para inserir, dá errado ?
         archive = fopen(nome_archive, "wb");
         if (!archive) {
             fclose(entrada);
@@ -553,7 +554,7 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
 
     // Insiro o id do meu arquivo a mover depois de target
     // Aqui é um ponto crucial: eu apenas movo o id do membro, depois insiro todos eles novamente
-    // Será que o erro de ficar bagunçado não está aqui ?
+    // Será que o erro de ficar bagunçado não está aqui ? Eu não atualizo os ids intermediários
     int pos_target = lista_procura(lista_membros, target_item->valor);
     lista_insere(lista_membros, id_mover, pos_target);
 
@@ -721,6 +722,7 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
 
     // Retiro o id do meu membro removido da lista de membros
     lista_retira(lista_membros, &membro_a_remover->id, lista_procura(lista_membros, membro_a_remover->id));
+    // Não tenho que atualizar a ordem aqui também ?
 
     // Libero meu membro removido
     free(membro_a_remover);
