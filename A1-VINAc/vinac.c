@@ -1,7 +1,9 @@
+#define _XOPEN_SOURCE 700
 #include <stdio.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "vinac.h"
 #include "lz.h"
 #include "lista.h"
@@ -507,24 +509,18 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 }
 
 void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista_membros) {
-    // Abrindo meu archive
     FILE *archive = fopen(nome_archive, "r+b");
-    if (!archive)
-        return;
+    if (!archive) return;
 
-    // Carrego minha lista de membros, assim como os ponteiros entre membros
     lista_membros = carregar_membros(archive, lista_membros);
     if (!lista_membros) {
         fclose(archive);
         return;
     }
 
-    // Localiza o membro a ser removido
     struct membro *membro_a_remover = NULL;
     struct item_t *temp = lista_membros->prim;
     while (temp) {
-        // Vou buscar o membro a ser removido, se ele corresponder, será armazenado na variável membro_a_remover
-        // Se encontrar, sai do laço while, caso contrário, continua até achar
         struct membro *m = busca_membro(temp->valor, archive);
         if (m && strcmp(m->nome, nome_membro) == 0) {
             membro_a_remover = m;
@@ -534,93 +530,79 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
         temp = temp->prox;
     }
 
-    // Se não achou o membro a remover, retorna
     if (!membro_a_remover) {
         fclose(archive);
         return;
     }
 
-    // Cria um binário temporário
-    FILE *temp_archive = fopen("temp_archive.bin", "wb");
-    if (!temp_archive) {
-        free(membro_a_remover);
-        fclose(archive);
-        return;
+    // Definindo o tamanho total a ser removido para truncar depois
+    int total_remover = sizeof(struct membro) + membro_a_remover->tam_disco;
+
+    // Descobrir tamanho total do arquivo
+    fseek(archive, 0, SEEK_END);
+    long tamanho_total = ftell(archive);
+
+    rewind(archive);
+    
+    struct item_t *tmp = lista_membros->prim;
+    while (tmp) {
+        struct membro *m = busca_membro(tmp->valor, archive);
+        if (strcmp(m->nome, membro_a_remover->nome) == 0) {
+            printf ("Achei!! m->nome: %s, membro_a_remover->nome: %s\n", m->nome, membro_a_remover->nome);
+            // Atualizando os ponteiros e offsets dos membros
+            struct membro *m_prox = membro_a_remover->prox;
+            struct membro *m_ant = membro_a_remover->ant;
+            while (m_prox) {
+                m_prox->offset = m_ant->offset + m_prox->tam_disco;
+                m_ant->prox = m_prox;
+                m_prox->ant = m_ant;
+
+                m_prox = m_prox->prox;
+                m_ant = m_ant->prox;
+            }
+            break;
+        }
+        free(m);
+        tmp = tmp->prox;
     }
 
-    // Volta no começo de archive
+    // Liberando os ponteiros do membro a remover
+    membro_a_remover->prox = NULL;
+    membro_a_remover->ant = NULL;
+
+    // Retirando membro removido da lista encadeada
+    lista_retira(lista_membros, &membro_a_remover->id, lista_procura(lista_membros, membro_a_remover->id));
+
+    // Agora, eu preciso escrever os membros que se mantiveram nos seus novos lugares
     rewind(archive);
 
-    // Armazeno em membros a quantidade de membros que tenho
-    int membros;
-    fread(&membros, sizeof(int), 1, archive);
-    // Armazeno em novos_membro a quantidade que eu terei após a remoção
-    int novos_membros = membros - 1;
-    fwrite(&novos_membros, sizeof(int), 1, temp_archive);
+    // Coloco o número de membros no começo do arquivo
+    int tamanho_lista = lista_tamanho(lista_membros);
+    fwrite(&tamanho_lista, sizeof(int), 1, archive);
 
-    // Aloco um espaço de memória para um membro
-    struct membro *m = (struct membro *)malloc(sizeof(struct membro));
-    if (!m) {
-        fclose(temp_archive);
-        fclose(archive);
-        free(membro_a_remover);
-        return;
-    }
-
-    for (int i = 0; i < membros; i++) {
-        // Armazeno em m um membro de archive e vou lendo struct a struct
-        fread(m, sizeof(struct membro), 1, archive);
-
-        // Quando eu achar o membro que quero remover no archive, eu pulo para o próximo
-        // membro com continue
-        if (strcmp(m->nome, membro_a_remover->nome) == 0) {
-            // Pula os dados do membro a ser removido
+    // Percorro a lista de membros e escrevo os dados de cada um deles
+    struct item_t *item = lista_membros->prim;
+    while (item) {
+        struct membro *m = busca_membro(item->valor, archive);
+        if (m) {
+            printf ("Estou escrevendo o membro %s\n", m->nome);
+            // Escrevo os dados do membro no arquivo
+            fwrite(m, sizeof(struct membro), 1, archive);
+            // Pulo os dados do membro que já foram escritos
             fseek(archive, m->tam_disco, SEEK_CUR);
-            continue;
         }
-
-        // Se não for o membro que quero remover
-        // O novo offset do membro vai ser a posição do cursor + o tamanho da struct membro
-        m->offset = ftell(temp_archive) + sizeof(struct membro);
-        // Vou escrever em temp_archive meu membro (struct membro), agora com um novo offset
-        fwrite(m, sizeof(struct membro), 1, temp_archive);
-
-        // Alocando um buffer do tamanho do membro atual
-        unsigned char *buffer = (unsigned char *)malloc(m->tam_disco);
-        if (!buffer) {
-            fclose(temp_archive);
-            fclose(archive);
-            free(m);
-            free(membro_a_remover);
-            return;
-        }
-
-        // Vou armazenar em um buffer o tamanho do membro lido
-        size_t lidos = fread(buffer, 1, m->tam_disco, archive);
-        // Vou escrever em archive os dados do meu novo membro
-        fwrite(buffer, 1, lidos, temp_archive);
-
-        free(buffer);
+        free(m);
+        item = item->prox;
     }
 
-    // Libero minha struct utilizada para iterar os membros
-    free(m);
+    // Truncar o arquivo no novo tamanho
+    int fd = fileno(archive);
+    ftruncate(fd, tamanho_total - total_remover);
 
-    // Fecho o archive e meu binário temporário
-    fclose(archive);
-    fclose(temp_archive);
-
-    // Removo o meu archive e renomeio meu binário modificado com seu nome
-    // Pode estar aqui o erro será ?
-    remove(nome_archive);
-    rename("temp_archive.bin", nome_archive);
-
-    // Retiro o id do meu membro removido da lista de membros
+    // Atualizar lista
     lista_retira(lista_membros, &membro_a_remover->id, lista_procura(lista_membros, membro_a_remover->id));
-    // Não tenho que atualizar a ordem aqui também ?
 
-    // Libero meu membro removido
-    free(membro_a_remover);
+    fclose(archive);
 }
 
 void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros) {
@@ -646,12 +628,14 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
     // Enquanto eu tenho membros na lista, vou buscá-los e identificar o membro a mover e o target
     while (item) {
         struct membro *m = busca_membro(item->valor, archive);
-        if (strcmp(m->nome, nome_membro) == 0)
+        if (strcmp(m->nome, nome_membro) == 0) {
             a_mover_membro = m;
             a_mover_item = item;
-        if (strcmp(m->nome, nome_target) == 0)
+        }
+        if (strcmp(m->nome, nome_target) == 0) {
             target_membro = m;
             target_item = item;
+        }
         free(m);
         item = item->prox;
     }
@@ -697,9 +681,9 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
     }
     
     // Agora, vou armazenar meu membro a mover em uma variável temporária
-    struct membro *membro_a_mover_copia = a_mover_membro;
+//    struct membro *membro_a_mover_copia = a_mover_membro;
     // Mais importante, vou armazenar o tamanho do meu membro que será movido
-    int tam_membro_a_mover = a_mover_membro->tam_disco;
+//    int tam_membro_a_mover = a_mover_membro->tam_disco;
 
     // Vou remover o membro da dinâmica de ponteiros que ele está inserido
     // A função remove já ajeita os ponteiros... (vamos supor)
