@@ -451,7 +451,7 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
             // Move o cursor para onde o membro achado começa
             fseek(archive, m->offset, SEEK_SET);
 
-            // Se ele for comprimido, eu simplesmente preciso descomprimi-lo
+            // Se ele for comprimido, eu simplesmente preciso descomprimimi-lo
             if (m->comprimido) {
                 if (descomprimir_arquivo(saida, archive, m->tam_original, m->tam_disco) < 0) 
                     return;
@@ -504,111 +504,6 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 
     // Fecho meu archive
     fclose(archive);
-}
-
-void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros) {
-    // Abro meu archive
-    FILE *archive = fopen(nome_archive, "r+b");
-    if (!archive) 
-        return;
-
-    // Carrego minha lista de membros, assim como os ponteiros entre membros
-    lista_membros = carregar_membros(archive, lista_membros);
-    if (!lista_membros || lista_membros->tamanho <= 1) {
-        fclose(archive);
-        return;
-    }
-
-    // Declaro as variáveis que vou utilizar
-    struct item_t *item = lista_membros->prim;
-    struct item_t *a_mover_item = NULL;
-    struct item_t *target_item = NULL;
-
-    // Enquanto eu tenho um membros na lisa, vou buscá-los e identificar o membro a mover e o target
-    // Vou guardar eles nas minhas variáveis a_mover_item e target_item
-    while (item) {
-        struct membro *m = busca_membro(item->valor, archive);
-        if (strcmp(m->nome, nome_membro) == 0)
-            a_mover_item = item;
-        if (strcmp(m->nome, nome_target) == 0)
-            target_item = item;
-        free(m);
-        item = item->prox;
-    }
-
-    // Se eu não achar algum dos dois, retorno
-    if (!a_mover_item || !target_item) {
-        fclose(archive);
-        return;
-    }
-
-    // Se o membro a mover for igual ao target, retorno
-    if (a_mover_item == target_item) {
-        fclose(archive);
-        return;
-    }
-
-    // Removo o id do meu arquivo a mover da lista de membros
-    int id_mover = a_mover_item->valor;
-    lista_retira(lista_membros, &id_mover, lista_procura(lista_membros, id_mover));
-
-    // Insiro o id do meu arquivo a mover depois de target
-    // Aqui é um ponto crucial: eu apenas movo o id do membro, depois insiro todos eles novamente
-    // Será que o erro de ficar bagunçado não está aqui ? Eu não atualizo os ids intermediários
-    int pos_target = lista_procura(lista_membros, target_item->valor);
-    lista_insere(lista_membros, id_mover, pos_target);
-
-    // Abro um arquivo binário temporário
-    FILE *temp = fopen("temp_archive.bin", "wb+");
-    if (!temp) {
-        fclose(archive);
-        return;
-    }
-
-    // Pego o tamanho da minha lista e escrevo no meu binário aberto (no começo de temp)
-    // O cursor vai pra depois dessa escrita
-    int total = lista_tamanho(lista_membros);
-    fwrite(&total, sizeof(int), 1, temp);
-
-    struct item_t *atual = lista_membros->prim;
-    while (atual) {
-        // Busco cada membro atual da minha lista
-        struct membro *m = busca_membro(atual->valor, archive);
-        // O offset desse membro vai ser a posição do cursor de temp + o tamanho da struct membro
-        m->offset = ftell(temp) + sizeof(struct membro);
-        // Escrevo no meu binário temp a struct desse membro (estrutura do membro)
-        fwrite(m, sizeof(struct membro), 1, temp);
-
-        // Aloco um buffer do tamanho do membro atual
-        unsigned char *buffer = malloc(m->tam_disco);
-        if (!buffer) {
-            fclose(temp);
-            fclose(archive);
-            free(m);
-            return;
-        }
-        // Movo o cursor para o começo do meu membro atual em archive! (não no binário)
-        fseek(archive, m->offset, SEEK_SET);
-        // Armazeno no meu buffer os dados do meu membro atual que está em archive
-        size_t lidos = fread(buffer, 1, m->tam_disco, archive);
-        // Escrevo no meu binário temp os dados do meu membro atual
-        fwrite(buffer, 1, lidos, temp);
-
-        // Libero o buffer e o membro atual
-        free(buffer);
-        free(m);
-
-        // Vou para o próximo membro
-        atual = atual->prox;
-    }
-
-    // Fecha o archive e o binário temp (temporário)
-    fclose(archive);
-    fclose(temp);
-
-    // Removo o meu archive e renomeio meu binário modificado com seu nome
-    remove(nome_archive);
-    rename("temp_archive.bin", nome_archive);
 }
 
 void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista_membros) {
@@ -726,6 +621,93 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
 
     // Libero meu membro removido
     free(membro_a_remover);
+}
+
+void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros) {
+    // Abro meu archive
+    FILE *archive = fopen(nome_archive, "r+b");
+    if (!archive) 
+        return;
+
+    // Carrego minha lista de membros, assim como os ponteiros entre membros
+    lista_membros = carregar_membros(archive, lista_membros);
+    if (!lista_membros || lista_membros->tamanho <= 1) {
+        fclose(archive);
+        return;
+    }
+
+    // Declaro as variáveis que vou utilizar
+    struct item_t *item = lista_membros->prim;
+    struct item_t *a_mover_item = NULL;
+    struct item_t *target_item = NULL;
+    struct membro *a_mover_membro = NULL;
+    struct membro *target_membro = NULL;
+
+    // Enquanto eu tenho membros na lista, vou buscá-los e identificar o membro a mover e o target
+    while (item) {
+        struct membro *m = busca_membro(item->valor, archive);
+        if (strcmp(m->nome, nome_membro) == 0)
+            a_mover_membro = m;
+            a_mover_item = item;
+        if (strcmp(m->nome, nome_target) == 0)
+            target_membro = m;
+            target_item = item;
+        free(m);
+        item = item->prox;
+    }
+
+    // Se eu não achar algum dos dois, retorno
+    if (!a_mover_membro || !target_membro) {
+        fclose(archive);
+        return;
+    }
+
+    // Se o membro a mover for igual ao target, retorno
+    if (a_mover_membro == target_membro) {
+        fclose(archive);
+        return;
+    }
+
+    // Agora, eu vou localizar meus membros intermediários, que ficam entre o membro a mover e o target e criar uma lista temporária com eles
+    // Basta eu começar minha busca com o offset do target e ir até o offset do membro a mover
+    struct item_t *temp = target_item;
+    struct lista_t *temp_lista = lista_cria();
+    while (temp && temp != a_mover_item) {
+        struct membro *m = busca_membro(temp->valor, archive);
+        if (m) {
+            // Insiro o id do membro na lista temporária
+            lista_insere(temp_lista, m->id, -1);
+            free(m);
+        }
+        temp = temp->prox;
+    }
+
+    // Debug
+    printf ("Esses são os membros intermediários:\n");
+    // Imprimo os membros intermediários
+    struct item_t *temp2 = temp_lista->prim;
+    while (temp2) {
+        struct membro *m = busca_membro(temp2->valor, archive);
+        if (m) {
+            printf("[INTERMEDIARIO]Nome: %s, UID: %d, Tamanho Original: %d, Tamanho Disco: %d, Data: %d, Ordem: %d, Offset: %d\n",
+                   m->nome, m->uid, m->tam_original, m->tam_disco, m->data, m->ordem, m->offset);
+            free(m);
+        }
+        temp2 = temp2->prox;
+    }
+    
+    // Agora, vou armazenar meu membro a mover em uma variável temporária
+    struct membro *membro_a_mover_copia = a_mover_membro;
+    // Mais importante, vou armazenar o tamanho do meu membro que será movido
+    int tam_membro_a_mover = a_mover_membro->tam_disco;
+
+    // Vou remover o membro da dinâmica de ponteiros que ele está inserido
+    // A função remove já ajeita os ponteiros... (vamos supor)
+    remover_membro(nome_archive, a_mover_membro->nome, lista_membros);
+
+
+
+    
 }
 
 void listar_conteudo(char *nome_archive, struct lista_t *lista_membros) {
