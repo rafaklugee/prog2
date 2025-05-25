@@ -431,6 +431,7 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 
     struct membro *temp = primeiro;
     while (temp) {
+        printf ("...Achei o membro %s...\n", temp->nome);
         // Eu vou percorrer todos os membros da minha lista
             // Se não for para extrair todos, e se o nome não corresponder, vai para o próximo membro, ignorando com continue
             if (!extrair_todos && strcmp(temp->nome, nome_arquivo) != 0) {
@@ -446,13 +447,14 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
                 return;
             }
 
-            // Move o cursor para onde o membro achado começa
+            // Move o cursor para onde está o membro achado
             fseek(archive, temp->offset, SEEK_SET);
 
             // Se ele for comprimido, eu simplesmente preciso descomprimimi-lo
             if (temp->comprimido) {
-                if (descomprimir_arquivo(saida, archive, temp->tam_original, temp->tam_disco) < 0) 
+                if (descomprimir_arquivo(saida, archive, temp->tam_original, temp->tam_disco) < 0)  {
                     return;
+                }
             // Caso ele não for comprimido
             } else {
                 // Aloco um buffer do tamanho do arquivo que quero extrair
@@ -466,7 +468,7 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 
                 // Lê de archive os dados (limitado pelo seu tamanho) do arquivo e armazena no buffer
                 size_t lidos = fread(buffer, 1, temp->tam_original, archive);
-                if (lidos != (size_t)temp->tam_original) {
+                if (!lidos) {
                     fclose(archive);
                     fclose(saida);
                     free(buffer);
@@ -474,9 +476,12 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
                     return;
                 }
 
+                printf ("Esses sao os dados que eu vou escrever na saida:\n");
+                printf ("%s\n", buffer);
+
                 // Escreve na saida o conteúdo do buffer, que são os dados do meu arquivo
                 size_t escritos = fwrite(buffer, 1, temp->tam_original, saida);
-                if (escritos != (size_t)temp->tam_original) {
+                if (!escritos) {
                     fclose(archive);
                     fclose(saida);
                     free(buffer);
@@ -541,11 +546,10 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
         return;
     }
 
-    int total_remover = calcula_offset(membro_a_remover);
-
+    //int total_remover = calcula_offset(membro_a_remover);
     // Descobrir tamanho total do arquivo
-    fseek(archive, 0, SEEK_END);
-    long tamanho_total = ftell(archive);
+    //fseek(archive, 0, SEEK_END);
+    //long tamanho_total = ftell(archive);
 
     rewind(archive);
     
@@ -586,18 +590,22 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
     // Depois eu vou ajustar os offsets para que sejam novos
     tmpo = primeiro;
     while (tmpo) {
-        if (tmpo->ant)
+        if (tmpo->ant) {
             tmpo->offset = tmpo->ant->offset + tmpo->offset_puro;
-        else
+            printf ("o offset novo de %s: %d\n", tmpo->nome, tmpo->offset);
+        }
+        else {
             tmpo->offset = calcula_offset(tmpo);
+            printf ("o offset novo de %s: %d\n", tmpo->nome, tmpo->offset);
+        }
         tmpo = tmpo->prox;
     }
 
-    // Retirando membro removido da lista encadeada
-    lista_retira(lista_membros, &membro_a_remover->id, lista_procura(lista_membros, membro_a_remover->id));
-
     // Agora, vamos começar a sobreescrever as coisas
     rewind(archive);
+
+    // Retirando membro removido da lista encadeada
+    lista_retira(lista_membros, &membro_a_remover->id, lista_procura(lista_membros, membro_a_remover->id));
 
     // Escreve o número de membros no início do arquivo
     int tamanho_lista = lista_tamanho(lista_membros);
@@ -606,6 +614,8 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
     // Sobreescreve todos os membros no archive, menos o removido
     tmpo = primeiro;
     while (tmpo) {
+        printf ("...tmpo que achei tem nome = %s e offset = %d e tamanho %d...\n", tmpo->nome, tmpo->offset, tmpo->tam_original);
+        
         if (tmpo == membro_a_remover) {
             // Ignora o membro removido
             printf("Achei membro que removi! Pulando...\n");
@@ -613,16 +623,13 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
             continue;
         }
 
-        printf("Estou escrevendo o membro %s\n", tmpo->nome);
-
         // Escreve a estrutura do membro
         fwrite(tmpo, sizeof(struct membro), 1, archive);
 
         // Vou guardar a posição que estou no archive em uma variável
-        int posicao_atual = ftell(archive);
-        printf ("minha posicao atual no archive eh %d\n", posicao_atual);
+        //int posicao_atual = ftell(archive);
 
-        // Escreve os dados do membro
+        // Aloca o buffer do tamanho original do membro
         unsigned char *buffer = (unsigned char *)malloc(tmpo->tam_original);
         if (!buffer) {
             fclose(archive);
@@ -631,7 +638,6 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
 
         // Primeiro, vou até os dados do membro no arquivo original
         fseek(archive, tmpo->offset_antigo, SEEK_SET);
-        printf ("cheguei no offset antigo %d do membro %s ele eh %ld\n", tmpo->offset_antigo, tmpo->nome, ftell(archive));
 
         // Armazena os dados no buffer
         size_t lidos = fread(buffer, 1, tmpo->tam_original, archive);
@@ -642,20 +648,30 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
         }
 
         // Voltando a posição que eu estava
-        fseek(archive, posicao_atual, SEEK_SET);
-        // Escreve os dados do membro no archive
-        printf ("vou escrever na posicao %d do archive\n", posicao_atual);
-        fwrite(buffer, 1, lidos, archive);
-
         fseek(archive, tmpo->offset, SEEK_SET);
 
+        // Escreve os dados do membro no archive depois de escrever a struct membro
+        size_t escritos = fwrite(buffer, 1, lidos, archive);
+        if (escritos != (size_t)tmpo->tam_original || escritos != lidos) {
+            printf ("Erro ao escrever os dados do membro no archive.\n");
+            free(buffer);
+            fclose(archive);
+            return;
+        }
+
+        printf ("Os dados escritos foram: %s\n", buffer);
+        //printf ("na posicao %d\n", posicao_atual);
+        printf ("e o tamanho do membro eh %d\n", tmpo->tam_original);
+
         free(buffer);
+
         tmpo = tmpo->prox;
     }
 
     // Trunca o arquivo para remover os resíduos do membro excluído
+    long novo_tamanho = ftell(archive);
     int fd = fileno(archive);
-    ftruncate(fd, tamanho_total - total_remover);
+    ftruncate(fd, novo_tamanho);
 
     fclose(archive);
 }
