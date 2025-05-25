@@ -554,21 +554,36 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
     while (tmpo) {
         tmpo->offset_puro = calcula_offset(tmpo);
         tmpo = tmpo->prox;
-    }
+    }   
 
     // Vou ajeitar primeiramente apenas os ponteiros
     tmpo = primeiro;
     while (tmpo) {
-        if (strcmp(tmpo->nome, membro_a_remover->nome) == 0) {
-            // Atualizando os ponteiros e offsets dos membros           
-            membro_a_remover->ant->prox = membro_a_remover->prox;
-            membro_a_remover->prox->ant = membro_a_remover->ant;
+        if (strcmp(tmpo->nome, membro_a_remover->nome) == 0) {          
+            if (membro_a_remover->ant)
+                membro_a_remover->ant->prox = membro_a_remover->prox;
+            else
+                primeiro = membro_a_remover->prox;
+            
+            if (membro_a_remover->prox)
+                membro_a_remover->prox->ant = membro_a_remover->ant;
             break;
         }
         tmpo = tmpo->prox;
     }
 
-    // Depois eu vou ajustar os offsets
+    // Liberando os ponteiros do membro a remover
+    membro_a_remover->prox = NULL;
+    membro_a_remover->ant = NULL;
+
+    // Agora vou guardar os offsets originais dos membros
+    tmpo = primeiro;
+    while (tmpo) {
+        tmpo->offset_antigo = tmpo->offset;
+        tmpo = tmpo->prox;
+    }
+
+    // Depois eu vou ajustar os offsets para que sejam novos
     tmpo = primeiro;
     while (tmpo) {
         if (tmpo->ant)
@@ -578,20 +593,17 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
         tmpo = tmpo->prox;
     }
 
-    // Liberando os ponteiros do membro a remover
-    //membro_a_remover->prox = NULL;
-    //membro_a_remover->ant = NULL;
-
     // Retirando membro removido da lista encadeada
     lista_retira(lista_membros, &membro_a_remover->id, lista_procura(lista_membros, membro_a_remover->id));
 
+    // Agora, vamos começar a sobreescrever as coisas
     rewind(archive);
 
     // Escreve o número de membros no início do arquivo
     int tamanho_lista = lista_tamanho(lista_membros);
     fwrite(&tamanho_lista, sizeof(int), 1, archive);
 
-    // Reescreve os membros restantes no arquivo
+    // Sobreescreve todos os membros no archive, menos o removido
     tmpo = primeiro;
     while (tmpo) {
         if (tmpo == membro_a_remover) {
@@ -606,6 +618,10 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
         // Escreve a estrutura do membro
         fwrite(tmpo, sizeof(struct membro), 1, archive);
 
+        // Vou guardar a posição que estou no archive em uma variável
+        int posicao_atual = ftell(archive);
+        printf ("minha posicao atual no archive eh %d\n", posicao_atual);
+
         // Escreve os dados do membro
         unsigned char *buffer = (unsigned char *)malloc(tmpo->tam_original);
         if (!buffer) {
@@ -613,15 +629,25 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
             return;
         }
 
-        // Primeiro, ir até os dados do membro no arquivo original
-        fseek(archive, tmpo->offset, SEEK_SET);
+        // Primeiro, vou até os dados do membro no arquivo original
+        fseek(archive, tmpo->offset_antigo, SEEK_SET);
+        printf ("cheguei no offset antigo %d do membro %s ele eh %ld\n", tmpo->offset_antigo, tmpo->nome, ftell(archive));
 
         // Armazena os dados no buffer
         size_t lidos = fread(buffer, 1, tmpo->tam_original, archive);
+        if (lidos != (size_t)tmpo->tam_original) {
+            free(buffer);
+            fclose(archive);
+            return;
+        }
 
-        // Volta ao fim do membro recém escrito para escrever os dados
-        fseek(archive, 0, SEEK_END); // Ou mantenha um cursor de escrita separado
+        // Voltando a posição que eu estava
+        fseek(archive, posicao_atual, SEEK_SET);
+        // Escreve os dados do membro no archive
+        printf ("vou escrever na posicao %d do archive\n", posicao_atual);
         fwrite(buffer, 1, lidos, archive);
+
+        fseek(archive, tmpo->offset, SEEK_SET);
 
         free(buffer);
         tmpo = tmpo->prox;

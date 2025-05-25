@@ -15,6 +15,7 @@ struct membro {
     int offset;
     int comprimido;
     int offset_puro;
+    int offset_antigo;
     struct membro *prox;
     struct membro *ant;
 };
