@@ -55,7 +55,7 @@ struct membro* busca_membro(int id, FILE *archive) {
 
 
 // Função para carregar os membros do arquivo (popular a lista)
-struct lista_t *carregar_membros(FILE *arquivo, struct lista_t *lista_membros) {
+struct lista_t *carregar_membros(FILE *arquivo, struct lista_t *lista_membros, struct membro **primeiro_membro_out) {
     if (!arquivo || !lista_membros) {
         return NULL;
     }
@@ -69,47 +69,42 @@ struct lista_t *carregar_membros(FILE *arquivo, struct lista_t *lista_membros) {
         return NULL;
     }
 
-    struct membro *anterior = NULL;
+    struct membro *primeiro_membro = NULL;
+    struct membro *ultimo_membro = NULL;
 
     for (int i = 0; i < qtd_membros; i++) {
         struct membro *m = malloc(sizeof(struct membro));
         if (!m) 
             return NULL;
 
-        // Lê os membros a cada struct membro
         if (fread(m, sizeof(struct membro), 1, arquivo) != 1) {
             free(m);
             return NULL;
         }
 
-        // A cada leitura, atualiza os ponteiros dos membros que são lidos
-        // anterior <- m -> NULL
-        m->ant = anterior;
+        m->ant = ultimo_membro;
         m->prox = NULL;
 
-        // Se há algum membro anterior, atualiza o ponteiro do membro anterior
-        if (anterior)
-            // anterior <-> m -> NULL
-            anterior->prox = m;
+        if (ultimo_membro)
+            ultimo_membro->prox = m;
+        else
+            primeiro_membro = m;
 
-        // Insere na lista_membros o id de cada membro
+        ultimo_membro = m;
+
         if (!lista_insere(lista_membros, m->id, -1)) {
             free(m);
             return NULL;
         }
 
-        // Pula os dados do membro que já foi lido no arquivo
         if (fseek(arquivo, m->tam_disco, SEEK_CUR) != 0) {
             free(m);
             return NULL;
         }
-
-        // Agora sim, o membro atual virou o anterior (não é mais a primeira iteração)
-        anterior = m;
-        free(m);
     }
 
     // Retorna a lista de membros com o id de cada um e os membros com seus ponteiros ant e prox corretos
+    *primeiro_membro_out = primeiro_membro;
     return lista_membros;
 }
 
@@ -195,6 +190,8 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
     if (!entrada)
         return;
 
+    struct membro *primeiro = NULL;
+
     // Verifica se o membro já existe no archive
     // Criando uma lista temporária
     struct lista_t *temp_lista = lista_cria();
@@ -202,7 +199,7 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
     FILE *archive_temp = fopen(nome_archive, "rb");
     if (archive_temp) {
         // Carregando meus membros do archive e inserindo eles na lista
-        carregar_membros(archive_temp, temp_lista);
+        carregar_membros(archive_temp, temp_lista, &primeiro);
         struct item_t *temp = temp_lista->prim;
         while (temp) {
             // Buscando um membro qualquer e verificando se ele já existe no archive
@@ -421,70 +418,69 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
     if (!archive)
         return;
 
+    struct membro *primeiro = NULL;
+
     // Verifica se a lista já foi carregada, caso contrário, carrega a lista de membros
     if (lista_membros->prim == NULL) {
-        lista_membros = carregar_membros(archive, lista_membros);
+        lista_membros = carregar_membros(archive, lista_membros, &primeiro);
         if (!lista_membros) {
             fclose(archive);
             return;
         }
     }
 
-    struct item_t *temp = lista_membros->prim;
+    struct membro *temp = primeiro;
     while (temp) {
         // Eu vou percorrer todos os membros da minha lista
-        struct membro *m = busca_membro(temp->valor, archive);
-        if (m) {
             // Se não for para extrair todos, e se o nome não corresponder, vai para o próximo membro, ignorando com continue
-            if (!extrair_todos && strcmp(m->nome, nome_arquivo) != 0) {
-                free(m);
+            if (!extrair_todos && strcmp(temp->nome, nome_arquivo) != 0) {
                 temp = temp->prox;
                 continue;
             }
 
             // Caso contrário, cria o arquivo de saída com o nome do membro
-            FILE *saida = fopen(m->nome, "wb");
+            FILE *saida = fopen(temp->nome, "wb");
             if (!saida) {
-                free(m);
+                free(temp);
                 fclose(archive);
                 return;
             }
 
             // Move o cursor para onde o membro achado começa
-            fseek(archive, m->offset, SEEK_SET);
+            fseek(archive, temp->offset, SEEK_SET);
 
             // Se ele for comprimido, eu simplesmente preciso descomprimimi-lo
-            if (m->comprimido) {
-                if (descomprimir_arquivo(saida, archive, m->tam_original, m->tam_disco) < 0) 
+            if (temp->comprimido) {
+                if (descomprimir_arquivo(saida, archive, temp->tam_original, temp->tam_disco) < 0) 
                     return;
             // Caso ele não for comprimido
             } else {
                 // Aloco um buffer do tamanho do arquivo que quero extrair
-                unsigned char *buffer = (unsigned char *)malloc(m->tam_original);
+                unsigned char *buffer = (unsigned char *)malloc(temp->tam_original);
                 if (!buffer) {
                     fclose(saida);
                     fclose(archive);
-                    free(m);
+                    free(temp);
                     return;
                 }
 
                 // Lê de archive os dados (limitado pelo seu tamanho) do arquivo e armazena no buffer
-                size_t lidos = fread(buffer, 1, m->tam_original, archive);
-                if (lidos != (size_t)m->tam_original) {
+                size_t lidos = fread(buffer, 1, temp->tam_original, archive);
+                if (lidos != (size_t)temp->tam_original) {
                     fclose(archive);
                     fclose(saida);
                     free(buffer);
-                    free(m);
+                    free(temp);
                     return;
                 }
 
                 // Escreve na saida o conteúdo do buffer, que são os dados do meu arquivo
-                size_t escritos = fwrite(buffer, 1, m->tam_original, saida);
-                if (escritos != (size_t)m->tam_original) {
+                size_t escritos = fwrite(buffer, 1, temp->tam_original, saida);
+                if (escritos != (size_t)temp->tam_original) {
                     fclose(archive);
                     fclose(saida);
                     free(buffer);
-                    free(m);
+                    free(temp);
                     return;
                 }  
 
@@ -493,13 +489,11 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
             }
 
             // Libero o membro e fecho o arquivo de saída
-            free(m);
             fclose(saida);
 
             // Se eu não vou extrair todos, acabo minha função aqui. Se não, eu continuo a extrair os arquivos
             if (!extrair_todos) 
                 break;
-        }
         // Continuando a extrair os arquivos
         temp = temp->prox;
     }
@@ -508,26 +502,38 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
     fclose(archive);
 }
 
+int calcula_offset(struct membro *membro) {
+    // Se o membro não tiver ponteiro anterior, o offset é o tamanho do membro
+    if (!membro->ant) {
+        return membro->offset;
+    } else {
+        // Se o membro tiver ponteiro anterior, o offset é a diferença entre os offsets
+        return membro->offset - membro->ant->offset;
+    }
+}
+
 void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista_membros) {
     FILE *archive = fopen(nome_archive, "r+b");
-    if (!archive) return;
+    if (!archive) 
+        return;
 
-    lista_membros = carregar_membros(archive, lista_membros);
+    struct membro *primeiro = NULL;
+
+    lista_membros = carregar_membros(archive, lista_membros, &primeiro);
     if (!lista_membros) {
         fclose(archive);
         return;
     }
 
     struct membro *membro_a_remover = NULL;
-    struct item_t *temp = lista_membros->prim;
-    while (temp) {
-        struct membro *m = busca_membro(temp->valor, archive);
-        if (m && strcmp(m->nome, nome_membro) == 0) {
-            membro_a_remover = m;
+    struct membro *tmpo = primeiro;
+
+    while (tmpo) {
+        if (strcmp(tmpo->nome, nome_membro) == 0) {
+            membro_a_remover = tmpo;
             break;
         }
-        free(m);
-        temp = temp->prox;
+        tmpo = tmpo->prox;
     }
 
     if (!membro_a_remover) {
@@ -535,8 +541,7 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
         return;
     }
 
-    // Definindo o tamanho total a ser removido para truncar depois
-    int total_remover = sizeof(struct membro) + membro_a_remover->tam_disco;
+    int total_remover = calcula_offset(membro_a_remover);
 
     // Descobrir tamanho total do arquivo
     fseek(archive, 0, SEEK_END);
@@ -544,63 +549,87 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
 
     rewind(archive);
     
-    struct item_t *tmp = lista_membros->prim;
-    while (tmp) {
-        struct membro *m = busca_membro(tmp->valor, archive);
-        if (strcmp(m->nome, membro_a_remover->nome) == 0) {
-            printf ("Achei!! m->nome: %s, membro_a_remover->nome: %s\n", m->nome, membro_a_remover->nome);
-            // Atualizando os ponteiros e offsets dos membros
-            struct membro *m_prox = membro_a_remover->prox;
-            struct membro *m_ant = membro_a_remover->ant;
-            while (m_prox) {
-                m_prox->offset = m_ant->offset + m_prox->tam_disco;
-                m_ant->prox = m_prox;
-                m_prox->ant = m_ant;
+    // Agora eu tenho uma função que calcula o offset de cada membro, vou armazenar eles em "offset_puro"
+    tmpo = primeiro;
+    while (tmpo) {
+        tmpo->offset_puro = calcula_offset(tmpo);
+        tmpo = tmpo->prox;
+    }
 
-                m_prox = m_prox->prox;
-                m_ant = m_ant->prox;
-            }
+    // Vou ajeitar primeiramente apenas os ponteiros
+    tmpo = primeiro;
+    while (tmpo) {
+        if (strcmp(tmpo->nome, membro_a_remover->nome) == 0) {
+            // Atualizando os ponteiros e offsets dos membros           
+            membro_a_remover->ant->prox = membro_a_remover->prox;
+            membro_a_remover->prox->ant = membro_a_remover->ant;
             break;
         }
-        free(m);
-        tmp = tmp->prox;
+        tmpo = tmpo->prox;
+    }
+
+    // Depois eu vou ajustar os offsets
+    tmpo = primeiro;
+    while (tmpo) {
+        if (tmpo->ant)
+            tmpo->offset = tmpo->ant->offset + tmpo->offset_puro;
+        else
+            tmpo->offset = calcula_offset(tmpo);
+        tmpo = tmpo->prox;
     }
 
     // Liberando os ponteiros do membro a remover
-    membro_a_remover->prox = NULL;
-    membro_a_remover->ant = NULL;
+    //membro_a_remover->prox = NULL;
+    //membro_a_remover->ant = NULL;
 
     // Retirando membro removido da lista encadeada
     lista_retira(lista_membros, &membro_a_remover->id, lista_procura(lista_membros, membro_a_remover->id));
 
-    // Agora, eu preciso escrever os membros que se mantiveram nos seus novos lugares
     rewind(archive);
 
-    // Coloco o número de membros no começo do arquivo
+    // Escreve o número de membros no início do arquivo
     int tamanho_lista = lista_tamanho(lista_membros);
     fwrite(&tamanho_lista, sizeof(int), 1, archive);
 
-    // Percorro a lista de membros e escrevo os dados de cada um deles
-    struct item_t *item = lista_membros->prim;
-    while (item) {
-        struct membro *m = busca_membro(item->valor, archive);
-        if (m) {
-            printf ("Estou escrevendo o membro %s\n", m->nome);
-            // Escrevo os dados do membro no arquivo
-            fwrite(m, sizeof(struct membro), 1, archive);
-            // Pulo os dados do membro que já foram escritos
-            fseek(archive, m->tam_disco, SEEK_CUR);
+    // Reescreve os membros restantes no arquivo
+    tmpo = primeiro;
+    while (tmpo) {
+        if (tmpo == membro_a_remover) {
+            // Ignora o membro removido
+            printf("Achei membro que removi! Pulando...\n");
+            tmpo = tmpo->prox;
+            continue;
         }
-        free(m);
-        item = item->prox;
+
+        printf("Estou escrevendo o membro %s\n", tmpo->nome);
+
+        // Escreve a estrutura do membro
+        fwrite(tmpo, sizeof(struct membro), 1, archive);
+
+        // Escreve os dados do membro
+        unsigned char *buffer = (unsigned char *)malloc(tmpo->tam_original);
+        if (!buffer) {
+            fclose(archive);
+            return;
+        }
+
+        // Primeiro, ir até os dados do membro no arquivo original
+        fseek(archive, tmpo->offset, SEEK_SET);
+
+        // Armazena os dados no buffer
+        size_t lidos = fread(buffer, 1, tmpo->tam_original, archive);
+
+        // Volta ao fim do membro recém escrito para escrever os dados
+        fseek(archive, 0, SEEK_END); // Ou mantenha um cursor de escrita separado
+        fwrite(buffer, 1, lidos, archive);
+
+        free(buffer);
+        tmpo = tmpo->prox;
     }
 
-    // Truncar o arquivo no novo tamanho
+    // Trunca o arquivo para remover os resíduos do membro excluído
     int fd = fileno(archive);
     ftruncate(fd, tamanho_total - total_remover);
-
-    // Atualizar lista
-    lista_retira(lista_membros, &membro_a_remover->id, lista_procura(lista_membros, membro_a_remover->id));
 
     fclose(archive);
 }
@@ -612,7 +641,7 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
         return;
 
     // Carrego minha lista de membros, assim como os ponteiros entre membros
-    lista_membros = carregar_membros(archive, lista_membros);
+    lista_membros = carregar_membros(archive, lista_membros, NULL);
     if (!lista_membros || lista_membros->tamanho <= 1) {
         fclose(archive);
         return;
@@ -700,23 +729,21 @@ void listar_conteudo(char *nome_archive, struct lista_t *lista_membros) {
     if (!archive)
         return;
 
+    struct membro *primeiro = NULL;
+
     // Carrego minha lista de membros, assim como os ponteiros entre membros
-    lista_membros = carregar_membros(archive, lista_membros);
+    lista_membros = carregar_membros(archive, lista_membros, &primeiro);
     if (!lista_membros) {
         fclose(archive);
         return;
     }
 
-    struct item_t *temp = lista_membros->prim;
+    struct membro *temp = primeiro;
     
     // Vou buscar membro a membro. Todo membro que achar, vou printar suas informações
     while (temp) {
-        struct membro *m = busca_membro(temp->valor, archive);
-        if (m) {
-            printf("Nome: %s, UID: %d, Tamanho Original: %d, Tamanho Disco: %d, Data: %d, Ordem: %d, Offset: %d\n",
-                   m->nome, m->uid, m->tam_original, m->tam_disco, m->data, m->ordem, m->offset);
-            free(m);
-        }
+        printf("Nome: %s, UID: %d, Tamanho Original: %d, Tamanho Disco: %d, Data: %d, Ordem: %d, Offset: %d\n",
+               temp->nome, temp->uid, temp->tam_original, temp->tam_disco, temp->data, temp->ordem, temp->offset);
         // Depois de printar, vou para o próximo membro
         temp = temp->prox;
     }
