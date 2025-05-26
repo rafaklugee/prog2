@@ -542,11 +542,6 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
         return;
     }
 
-    //int total_remover = calcula_offset(membro_a_remover);
-    // Descobrir tamanho total do arquivo
-    //fseek(archive, 0, SEEK_END);
-    //long tamanho_total = ftell(archive);
-
     rewind(archive);
     
     // Agora eu tenho uma função que calcula o offset de cada membro, vou armazenar eles em "offset_puro"
@@ -662,6 +657,31 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
     fclose(archive);
 }
 
+void desloca_membro(FILE *archive, long inicio, long fim, long deslocamento) {
+    // Se o deslocamento for 0, não há nada a fazer
+    if (deslocamento == 0) 
+        return;
+
+    // Determina a direção do deslocamento
+    if (deslocamento > 0) {
+        // Deslocamento para frente (aumenta o espaço)
+        for (long i = fim; i >= inicio; i--) {
+            fseek(archive, i, SEEK_SET);
+            int byte = fgetc(archive);
+            fseek(archive, i + deslocamento, SEEK_SET);
+            fputc(byte, archive);
+        }
+    } else {
+        // Deslocamento para trás (remove espaço)
+        for (long i = inicio; i <= fim; i++) {
+            fseek(archive, i, SEEK_SET);
+            int byte = fgetc(archive);
+            fseek(archive, i + deslocamento, SEEK_SET);
+            fputc(byte, archive);
+        }
+    }
+}
+
 void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros) {
     // Abro meu archive
     FILE *archive = fopen(nome_archive, "r+b");
@@ -705,8 +725,60 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
         return;
     }
 
+    // Vou calcular os offsets puros dos membros
+    tmp = primeiro;
+    while (tmp) {
+        tmp->offset_puro = calcula_offset(tmp);
+        tmp = tmp->prox;
+    }
+
+    // Vou guardar os offsets antigos dos membros
+    tmp = primeiro;
+    while (tmp) {
+        tmp->offset_antigo = tmp->offset;
+        tmp = tmp->prox;
+    }
+
+    // Primeiro vou ajustar os ponteiros dos membros
+    tmp = primeiro;
+    struct membro *a_mover_membro_ant = a_mover_membro->ant;
+    struct membro *a_mover_membro_prox= a_mover_membro->prox; 
+    while (tmp) {
+         if (tmp == target_membro) {
+            // Se o membro for o target, atualizo o ponteiro dele para o membro a mover
+            struct membro *antigo_prox = tmp->prox;
+            tmp->prox = a_mover_membro;
+            a_mover_membro->ant = tmp;
+            if (antigo_prox) {
+                a_mover_membro->prox = antigo_prox;
+                antigo_prox->ant = a_mover_membro;
+            }
+        }
+        // Atualizo o anterior e o próximo antigos do membro a mover
+        else if (tmp == a_mover_membro_ant) {
+            tmp->prox = a_mover_membro_prox;
+        }
+        else if (tmp == a_mover_membro_prox) {
+            tmp->ant = a_mover_membro_ant;
+        }
+        tmp = tmp->prox;
+    }
+
+    //printf ("Debug para ver como estão os ponteiros:\n");
+    //tmp = primeiro;
+    //while (tmp) {
+    //    printf("Membro: %s, Ant: %s, Prox: %s\n", tmp->nome, tmp->ant ? tmp->ant->nome : "NULL", tmp->prox ? tmp->prox->nome : "NULL");
+    //    tmp = tmp->prox;
+    //}
+
+    // Agora que eu já tenho os ponteiros ajustados, preciso deixar um espaço no meu archive para colocar meu novo membro
+    rewind(archive);
+
+
     
 
+
+    fclose(archive);
 }
 
 void listar_conteudo(char *nome_archive, struct lista_t *lista_membros) {
