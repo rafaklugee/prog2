@@ -431,7 +431,6 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
 
     struct membro *temp = primeiro;
     while (temp) {
-        printf ("...Achei o membro %s...\n", temp->nome);
         // Eu vou percorrer todos os membros da minha lista
             // Se não for para extrair todos, e se o nome não corresponder, vai para o próximo membro, ignorando com continue
             if (!extrair_todos && strcmp(temp->nome, nome_arquivo) != 0) {
@@ -475,9 +474,6 @@ void extrair_membro(char *nome_archive, char *nome_arquivo, struct lista_t *list
                     free(temp);
                     return;
                 }
-
-                printf ("Esses sao os dados que eu vou escrever na saida:\n");
-                printf ("%s\n", buffer);
 
                 // Escreve na saida o conteúdo do buffer, que são os dados do meu arquivo
                 size_t escritos = fwrite(buffer, 1, temp->tam_original, saida);
@@ -564,7 +560,6 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
     tmpo = primeiro;
     while (tmpo) {
         if (strcmp(tmpo->nome, membro_a_remover->nome) == 0) {    
-            printf ("dentro do while achei o membro %s\n\n", tmpo->nome);
             if (membro_a_remover->ant && membro_a_remover->prox) {
                 // Não é nenhum dos membros extremos
                 membro_a_remover->ant->prox = membro_a_remover->prox;
@@ -579,7 +574,6 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
                 // É o último membro
                 membro_a_remover->ant->prox = NULL;
             }
-            printf ("%s->%s->%s\n\n", primeiro->nome, primeiro->prox->nome, primeiro->prox->prox->nome);
             break;
         }
         tmpo = tmpo->prox;
@@ -614,7 +608,6 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
     // Sobreescreve todos os membros no archive, menos o removido
     tmpo = primeiro;
     while (tmpo) {
-        printf ("achei o membro %s\n", tmpo->nome);
         if (tmpo == membro_a_remover) {
             // Ignora o membro removido
             tmpo = tmpo->prox;
