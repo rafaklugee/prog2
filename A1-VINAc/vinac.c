@@ -668,33 +668,29 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
     if (!archive) 
         return;
 
+    struct membro *primeiro = NULL;
+
     // Carrego minha lista de membros, assim como os ponteiros entre membros
-    lista_membros = carregar_membros(archive, lista_membros, NULL);
+    lista_membros = carregar_membros(archive, lista_membros, &primeiro);
     if (!lista_membros || lista_membros->tamanho <= 1) {
         fclose(archive);
         return;
     }
 
+    
     // Declaro as variáveis que vou utilizar
-    struct item_t *item = lista_membros->prim;
-    struct item_t *a_mover_item = NULL;
-    struct item_t *target_item = NULL;
+    struct membro *tmp = primeiro;
     struct membro *a_mover_membro = NULL;
     struct membro *target_membro = NULL;
 
     // Enquanto eu tenho membros na lista, vou buscá-los e identificar o membro a mover e o target
-    while (item) {
-        struct membro *m = busca_membro(item->valor, archive);
-        if (strcmp(m->nome, nome_membro) == 0) {
-            a_mover_membro = m;
-            a_mover_item = item;
-        }
-        if (strcmp(m->nome, nome_target) == 0) {
-            target_membro = m;
-            target_item = item;
-        }
-        free(m);
-        item = item->prox;
+    while (tmp) {
+        if (strcmp(tmp->nome, nome_membro) == 0) 
+            a_mover_membro = tmp;
+        if (strcmp(tmp->nome, nome_target) == 0) 
+            target_membro = tmp;
+
+        tmp = tmp->prox;
     }
 
     // Se eu não achar algum dos dois, retorno
@@ -709,46 +705,8 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
         return;
     }
 
-    // Agora, eu vou localizar meus membros intermediários, que ficam entre o membro a mover e o target e criar uma lista temporária com eles
-    // Basta eu começar minha busca com o offset do target e ir até o offset do membro a mover
-    struct item_t *temp = target_item;
-    struct lista_t *temp_lista = lista_cria();
-    while (temp && temp != a_mover_item) {
-        struct membro *m = busca_membro(temp->valor, archive);
-        if (m) {
-            // Insiro o id do membro na lista temporária
-            lista_insere(temp_lista, m->id, -1);
-            free(m);
-        }
-        temp = temp->prox;
-    }
-
-    // Debug
-    printf ("Esses são os membros intermediários:\n");
-    // Imprimo os membros intermediários
-    struct item_t *temp2 = temp_lista->prim;
-    while (temp2) {
-        struct membro *m = busca_membro(temp2->valor, archive);
-        if (m) {
-            printf("[INTERMEDIARIO]Nome: %s, UID: %d, Tamanho Original: %d, Tamanho Disco: %d, Data: %d, Ordem: %d, Offset: %d\n",
-                   m->nome, m->uid, m->tam_original, m->tam_disco, m->data, m->ordem, m->offset);
-            free(m);
-        }
-        temp2 = temp2->prox;
-    }
     
-    // Agora, vou armazenar meu membro a mover em uma variável temporária
-//    struct membro *membro_a_mover_copia = a_mover_membro;
-    // Mais importante, vou armazenar o tamanho do meu membro que será movido
-//    int tam_membro_a_mover = a_mover_membro->tam_disco;
 
-    // Vou remover o membro da dinâmica de ponteiros que ele está inserido
-    // A função remove já ajeita os ponteiros... (vamos supor)
-    remover_membro(nome_archive, a_mover_membro->nome, lista_membros);
-
-
-
-    
 }
 
 void listar_conteudo(char *nome_archive, struct lista_t *lista_membros) {
