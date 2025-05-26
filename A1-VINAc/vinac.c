@@ -657,31 +657,6 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
     fclose(archive);
 }
 
-void desloca_membro(FILE *archive, long inicio, long fim, long deslocamento) {
-    // Se o deslocamento for 0, não há nada a fazer
-    if (deslocamento == 0) 
-        return;
-
-    // Determina a direção do deslocamento
-    if (deslocamento > 0) {
-        // Deslocamento para frente (aumenta o espaço)
-        for (long i = fim; i >= inicio; i--) {
-            fseek(archive, i, SEEK_SET);
-            int byte = fgetc(archive);
-            fseek(archive, i + deslocamento, SEEK_SET);
-            fputc(byte, archive);
-        }
-    } else {
-        // Deslocamento para trás (remove espaço)
-        for (long i = inicio; i <= fim; i++) {
-            fseek(archive, i, SEEK_SET);
-            int byte = fgetc(archive);
-            fseek(archive, i + deslocamento, SEEK_SET);
-            fputc(byte, archive);
-        }
-    }
-}
-
 void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, struct lista_t *lista_membros) {
     // Abro meu archive
     FILE *archive = fopen(nome_archive, "r+b");
@@ -696,19 +671,22 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
         fclose(archive);
         return;
     }
-
     
     // Declaro as variáveis que vou utilizar
     struct membro *tmp = primeiro;
     struct membro *a_mover_membro = NULL;
     struct membro *target_membro = NULL;
+    struct membro *ultimo_membro = NULL;
 
-    // Enquanto eu tenho membros na lista, vou buscá-los e identificar o membro a mover e o target
+    // Enquanto eu tenho membros na lista, vou buscá-los e identificar o membro a mover e o target e identificar o último membro
     while (tmp) {
         if (strcmp(tmp->nome, nome_membro) == 0) 
             a_mover_membro = tmp;
         if (strcmp(tmp->nome, nome_target) == 0) 
             target_membro = tmp;
+        if (tmp->prox == NULL) {
+            ultimo_membro = tmp;
+        }
 
         tmp = tmp->prox;
     }
@@ -739,44 +717,150 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
         tmp = tmp->prox;
     }
 
-    // Primeiro vou ajustar os ponteiros dos membros
+    // Preciso armazenar o conteúdo e os metadados do meu membro a mover em um buffer
+    // Aloco o buffer do tamanho original do membro
+    unsigned char *buffer_mover = (unsigned char *)malloc(a_mover_membro->tam_original);
+    if (!buffer_mover) {
+        fclose(archive);
+        return;
+    }
+
+    // Vai até os dados do membro no arquivo original
+    fseek(archive, a_mover_membro->offset, SEEK_SET);
+
+    // Armazena os dados no buffer_mover
+    size_t lidos = fread(buffer_mover, 1, a_mover_membro->tam_original, archive);
+    if (lidos != (size_t)a_mover_membro->tam_original) {
+        free(buffer_mover);
+        fclose(archive);
+        return;
+    }
+
+    // Aloca uma cópia da struct membro para guardar os metadados
+    struct membro *membro_copia = malloc(sizeof(struct membro));
+    if (!membro_copia) {
+        free(buffer_mover);
+        fclose(archive);
+        return;
+    }
+    memcpy(membro_copia, a_mover_membro, sizeof(struct membro));
+
+    rewind(archive);
+
+    // Agora eu vou ajustar os ponteiros do meu arquivo para que o membro a mover não aponte
+    // para ninguém e nem seja apontado
     tmp = primeiro;
-    struct membro *a_mover_membro_ant = a_mover_membro->ant;
-    struct membro *a_mover_membro_prox= a_mover_membro->prox; 
     while (tmp) {
-         if (tmp == target_membro) {
-            // Se o membro for o target, atualizo o ponteiro dele para o membro a mover
-            struct membro *antigo_prox = tmp->prox;
-            tmp->prox = a_mover_membro;
-            a_mover_membro->ant = tmp;
-            if (antigo_prox) {
-                a_mover_membro->prox = antigo_prox;
-                antigo_prox->ant = a_mover_membro;
+        // Se o membro atual for o membro a mover, vou removê-lo da lista
+        if (tmp == a_mover_membro) {
+            // Se ele tiver um ponteiro anterior, atualizo o próximo do anterior
+            if (tmp->ant) {
+                tmp->ant->prox = tmp->prox;
             }
-        }
-        // Atualizo o anterior e o próximo antigos do membro a mover
-        else if (tmp == a_mover_membro_ant) {
-            tmp->prox = a_mover_membro_prox;
-        }
-        else if (tmp == a_mover_membro_prox) {
-            tmp->ant = a_mover_membro_ant;
+            // Se ele tiver um ponteiro próximo, atualizo o anterior do próximo
+            if (tmp->prox) {
+                tmp->prox->ant = tmp->ant;
+            }
+            break;
         }
         tmp = tmp->prox;
     }
 
-    //printf ("Debug para ver como estão os ponteiros:\n");
-    //tmp = primeiro;
-    //while (tmp) {
-    //    printf("Membro: %s, Ant: %s, Prox: %s\n", tmp->nome, tmp->ant ? tmp->ant->nome : "NULL", tmp->prox ? tmp->prox->nome : "NULL");
-    //    tmp = tmp->prox;
-    //}
+    // Preciso atualizar os offsets dos membros restantes
+    // Vou percorrer a lista de membros e atualizar os offsets
+    tmp = primeiro;
+    while (tmp) {
+        if (tmp->offset > a_mover_membro->offset) {
+            tmp->offset -= a_mover_membro->offset_puro;
+        }
+        tmp = tmp->prox;
+    }
 
-    // Agora que eu já tenho os ponteiros ajustados, preciso deixar um espaço no meu archive para colocar meu novo membro
-    rewind(archive);
-
-
+    // Agora, eu removi o membro da lista, mas preciso garantir que ele não será mais acessado
+    // Vou zerar os ponteiros do membro a mover
+    a_mover_membro->ant = NULL;
+    a_mover_membro->prox = NULL;
     
 
+    // Recalculo o último membro caso necessário
+    tmp = primeiro;
+    ultimo_membro = NULL;
+    while (tmp) {
+        if (tmp->prox == NULL) {
+            ultimo_membro = tmp;
+        }
+        tmp = tmp->prox;
+    }
+
+    rewind(archive);
+
+    // Agora, eu preciso empurrar todos os membros após o target para frente, para abrir espaço para o membro a mover
+    tmp = ultimo_membro;
+    while (tmp) {
+        // Se eu encontrar o target, vou parar de empurrar os membros
+        if (tmp == target_membro) {
+            // Atualizo o offset do membro a mover para o offset do target
+            a_mover_membro->offset = target_membro->offset + a_mover_membro->offset_puro;
+            
+            // Vou mover o cursor para a posição onde eu quero escrever o membro a mover
+            fseek(archive, a_mover_membro->offset, SEEK_SET);
+
+            // Vou escrever a struct membro a mover no archive
+            fwrite(membro_copia, sizeof(struct membro), 1, archive);
+
+            // Escrevo os dados do membro a mover no archive
+            size_t escritos = fwrite(buffer_mover, 1, a_mover_membro->tam_original, archive);
+            if (escritos != lidos) {
+                free(buffer_mover);
+                free(membro_copia);
+                fclose(archive);
+                return;
+            }
+            break;
+        }
+
+        //printf ("... esse eh o membro atual %s...\n", tmp->nome);
+
+        unsigned char *buffer = (unsigned char *)malloc(tmp->tam_disco);
+        if (!buffer) {
+            fclose(archive);
+            return;
+        }
+
+        // Vou até os dados do membro atual no arquivo original
+        fseek(archive, tmp->offset_antigo, SEEK_SET);
+        
+        // Armazeno os dados do membro atual no buffer
+        size_t lidos = fread(buffer, 1, tmp->tam_disco, archive);
+        if (lidos != (size_t)tmp->tam_disco) {
+            free(buffer);
+            fclose(archive);
+            return;
+        }
+        //printf ("Tenho esses dados no buffer:\n");
+        //printf ("%s\n", buffer);
+
+        // Vou para a posição onde eu quero escrever
+        if (tmp != target_membro) {
+            tmp->offset = tmp->offset + a_mover_membro->offset_puro;
+            fseek(archive, tmp->offset, SEEK_SET);
+            //printf ("Eu vou escrever no offset do membro %s, que eh %d\n", tmp->nome, tmp->offset);
+        }
+
+        // Escrevo a struct membro atual no archive
+        fwrite(tmp, sizeof(struct membro), 1, archive);
+        
+        // Escrevo os dados do membro atual no archive
+        size_t escritos = fwrite(buffer, 1, tmp->tam_original, archive);
+        if (escritos != lidos) {
+            free(buffer);
+            fclose(archive);
+            return;
+        }
+
+        // Vou para o próximo membro
+        tmp = tmp->ant;
+    }
 
     fclose(archive);
 }
