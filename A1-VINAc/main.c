@@ -84,6 +84,15 @@ int main(int argc, char *argv[]) {
         listar_conteudo(nome_archive, lista_membros);
     }
 
+    // Derivar membros
+    else if (strcmp(opcao, "-z") == 0) {
+        for (int i = 3; i < argc; i++) {
+            char *membro = argv[i];
+            printf("Derivando membro: %s!\n", membro);
+            derivar_archive(nome_archive, membro, lista_membros);
+        }
+    }
+
     // Opção inválida
     else {
         fprintf(stderr, "Opção inválida: %s\n.", opcao);

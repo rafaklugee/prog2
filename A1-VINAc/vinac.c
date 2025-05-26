@@ -217,6 +217,7 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
         // Destroi o carregamento do meu archive temporário
         fclose(archive_temp);
     }
+    
     // Destroi minha lista temporária
     lista_destroi(temp_lista);
 
@@ -235,6 +236,7 @@ void inserir_membro(char *nome_archive, char *nome_arquivo, int compressao, stru
         int membros = 0;
         fwrite(&membros, sizeof(int), 1, archive);
     }
+
 
     // O stat serve para pegar as estatísticas do meu archive (criado ou aberto)
     struct stat st;
@@ -892,4 +894,66 @@ void listar_conteudo(char *nome_archive, struct lista_t *lista_membros) {
 
     // Fecho meu archive
     fclose(archive);
+}
+
+void derivar_archive (char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros) {
+    // Abro meu archive
+    FILE *archive = fopen(nome_archive, "rb");
+    if (!archive)
+        return;
+
+    // Criando o nome do novo archive
+    //int tam_string = strlen(nome_archive);
+    char novo_nome_archive[64] = "arrumar_nome.vc";
+    //char string_z[4] = "_z";
+    //char vc[4] = ".vc";
+    //strncpy (novo_nome_archive, nome_archive, tam_string - 3);
+    //strcat (novo_nome_archive, string_z);
+    //strcat (novo_nome_archive, vc);
+
+    struct membro *primeiro = NULL;
+
+    // Carrego minha lista de membros, assim como os ponteiros entre membros
+    lista_membros = carregar_membros(archive, lista_membros, &primeiro);
+    if (!lista_membros) {
+        fclose(archive);
+        return;
+    }
+
+    int tam_lista = 0;
+    struct membro *temp = primeiro;
+
+    while (temp) {
+        if (strcmp(temp->nome, nome_arquivo) == 0) {
+            tam_lista++;
+
+            unsigned char *buffer = (unsigned char *)malloc(temp->tam_original);
+            if (!buffer) {
+                fclose(archive);
+                return;
+            }
+
+            //Agora eu preciso escrever esses dados armazenados dentro do meu archive
+            //Abro meu novo archive
+            FILE *novo_archive = fopen(novo_nome_archive, "wb");
+            if (!archive) {
+                return;
+            }
+
+            // Primeiro escrevo o número de membros no começo da lista
+            fwrite(&tam_lista, sizeof(int), 1, novo_archive);
+
+            //Fecho meu novo archive
+            fclose(novo_archive);
+
+            inserir_membro(novo_nome_archive, nome_arquivo, 0, lista_membros);
+
+             //Abro meu archive original novamente
+            archive = fopen(nome_archive, "rb");
+        }
+
+        temp = temp->prox;
+    }
+    fclose(archive);
+    
 }

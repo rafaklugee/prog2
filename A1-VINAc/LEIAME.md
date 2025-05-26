@@ -106,9 +106,7 @@ README.md:
     "vina", eles não serão sobreescritos, aparecerá que os arquivos já existem. Caso queiramos testar a extração,
     seria importante remover os arquivos originais do diretório presente logo após a inserção.
 
-- Uma dificuldade encontrada, foi a função mover_membro. Pois para implementá-la, é necessário muitas mudanças de
-    posição dentro do archive, buscar da lista posições e criar um arquivos temporários. Por ser muito complexa,
-    ela possui alguns problemas, que serão citados logo em seguida.
+- Não há mais arquivos temporários.
 
 # Bugs conhecidos
 - A função de inserção consegue lidar com apenas uma linha de comando. Por exemplo, se eu insiro vários arquivos
