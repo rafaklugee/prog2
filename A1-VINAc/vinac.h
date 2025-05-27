@@ -36,6 +36,6 @@ void remover_membro(char *nome_archive, char *nome_membro, struct lista_t *lista
 void listar_conteudo(char *nome_archive, struct lista_t *lista_membros);
 
 // Deriva determinado conteúdo de um archive (-z)
-void derivar_archive (char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros);
+void derivar_archive(char *nome_archive, char **membros, int qtd_membros, struct lista_t *lista_membros);
 
 #endif

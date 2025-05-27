@@ -108,6 +108,15 @@ struct lista_t *carregar_membros(FILE *arquivo, struct lista_t *lista_membros, s
     return lista_membros;
 }
 
+void liberar_membros(struct membro *m) {
+    struct membro *temp;
+    while (m) {
+        temp = m;
+        m = m->prox;
+        free(temp);
+    }
+}
+
 int comprimir_arquivo(FILE *entrada, FILE *arquivo_comprimido, int tam_original, int *tamanho_comprimido) {
     // Para que eu preciso de buffers ? Não posso apenas passar meus arquivos originais ?
     // Isso deve ter haver com as funções do lz, de comprimir e descomprimir -> Sim! Essas funções trabalham com blocos de memória, não arquivos
@@ -705,7 +714,7 @@ void mover_membro(char *nome_archive, char *nome_membro, char *nome_target, stru
         return;
     }
 
-    // Vou calcular os offsets puros dos membros
+    // Vou calcular os offsets pu\ros dos membros
     tmp = primeiro;
     while (tmp) {
         tmp->offset_puro = calcula_offset(tmp);
@@ -896,64 +905,93 @@ void listar_conteudo(char *nome_archive, struct lista_t *lista_membros) {
     fclose(archive);
 }
 
-void derivar_archive (char *nome_archive, char *nome_arquivo, struct lista_t *lista_membros) {
-    // Abro meu archive
+void derivar_archive(char *nome_archive, char **membros, int qtd_membros, struct lista_t *lista_membros) {
+    // Abre o arquivo original
     FILE *archive = fopen(nome_archive, "rb");
     if (!archive)
         return;
 
-    // Criando o nome do novo archive
-    //int tam_string = strlen(nome_archive);
-    char novo_nome_archive[64] = "arrumar_nome.vc";
-    //char string_z[4] = "_z";
-    //char vc[4] = ".vc";
-    //strncpy (novo_nome_archive, nome_archive, tam_string - 3);
-    //strcat (novo_nome_archive, string_z);
-    //strcat (novo_nome_archive, vc);
+    // Cria o nome do novo arcive
+    char novo_nome_archive[50];
+    strncpy(novo_nome_archive, nome_archive, strlen(nome_archive) - 3); // Remove ".vc"
+    novo_nome_archive[strlen(nome_archive) - 3] = '\0';
+    strcat(novo_nome_archive, "_z.vc");
 
+    // Carrega os membros do arquivo original
     struct membro *primeiro = NULL;
-
-    // Carrego minha lista de membros, assim como os ponteiros entre membros
     lista_membros = carregar_membros(archive, lista_membros, &primeiro);
     if (!lista_membros) {
         fclose(archive);
         return;
     }
 
-    int tam_lista = 0;
-    struct membro *temp = primeiro;
+    // Aloca um vetor de membros
+    struct membro **membros_encontrados = malloc(qtd_membros * sizeof(struct membro *));
+    if (!membros_encontrados) {
+        fclose(archive);
+        return;
+    }
 
-    while (temp) {
-        if (strcmp(temp->nome, nome_arquivo) == 0) {
-            tam_lista++;
-
-            unsigned char *buffer = (unsigned char *)malloc(temp->tam_original);
-            if (!buffer) {
-                fclose(archive);
-                return;
+    // Verifica se todos os membros especificados existem no arquivo original
+    for (int i = 0; i < qtd_membros; i++) {
+        struct membro *temp = primeiro;
+        membros_encontrados[i] = NULL;
+        while (temp) {
+            if (strcmp(temp->nome, membros[i]) == 0) {
+                membros_encontrados[i] = temp;
+                break;
             }
+            temp = temp->prox;
+        }
+        if (!membros_encontrados[i]) {
+            free(membros_encontrados);
+            fclose(archive);
+            return;
+        }
+    }
 
-            //Agora eu preciso escrever esses dados armazenados dentro do meu archive
-            //Abro meu novo archive
-            FILE *novo_archive = fopen(novo_nome_archive, "wb");
-            if (!archive) {
-                return;
-            }
+    // Cria o novo archive
+    FILE *novo_archive = fopen(novo_nome_archive, "wb");
+    if (!novo_archive) {
+        free(membros_encontrados);
+        fclose(archive);
+        return;
+    }
 
-            // Primeiro escrevo o número de membros no começo da lista
-            fwrite(&tam_lista, sizeof(int), 1, novo_archive);
+    // Escreve o número de membros no início do novo arquivo
+    fwrite(&qtd_membros, sizeof(int), 1, novo_archive);
 
-            //Fecho meu novo archive
+    // Adiciona os membros especificados ao novo arquivo
+    for (int i = 0; i < qtd_membros; i++) {
+        struct membro *membro_atual = membros_encontrados[i];
+
+        // Move o cursor para o offset do membro no arquivo original
+        fseek(archive, membro_atual->offset, SEEK_SET);
+
+        // Aloca um buffer para os dados do membro
+        unsigned char *buffer = (unsigned char *)malloc(membro_atual->tam_disco);
+        if (!buffer) {
+            fclose(archive);
             fclose(novo_archive);
-
-            inserir_membro(novo_nome_archive, nome_arquivo, 0, lista_membros);
-
-             //Abro meu archive original novamente
-            archive = fopen(nome_archive, "rb");
+            free(membros_encontrados);
+            return;
         }
 
-        temp = temp->prox;
+        // Lê os dados do membro do archive original
+        fread(buffer, 1, membro_atual->tam_disco, archive);
+
+        // Escreve a estrutura do membro no novo archive
+        fwrite(membro_atual, sizeof(struct membro), 1, novo_archive);
+
+        // Escreve os dados do membro no novo archive
+        fwrite(buffer, 1, membro_atual->tam_disco, novo_archive);
+
+        // Libera o buffer
+        free(buffer);
     }
+
+    free(membros_encontrados);
+    liberar_membros(primeiro);
     fclose(archive);
-    
+    fclose(novo_archive);
 }
