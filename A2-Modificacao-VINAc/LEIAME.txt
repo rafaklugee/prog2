@@ -1,0 +1,16 @@
+Nome: Rafael Ribeiro Kluge
+GRR: 20244439
+
+# Implementação
+- A lógica que itera a cada membro do archive é a seguinte:
+	- Aumento o tamanho da lista em uma unidade
+	- Crio/abro o archive novo, com o nome contido na variável char que declarei anteriormente
+	- Escrevo o número de membros no começo do archive
+	- Insiro o membro com a função inserir_membro dentro do archive
+
+# Dificuldades e Observações
+- O nome do archive não ficou conforme especificado no trabalho por não me recordar de colocar '\0' ao final da string.
+- O meu "fopen" do novo archive está dentro do loop, mas deveria estar fora. Logo, não consigo inserir mais que um membro pois a cada iteração é criado um novo archive
+- Faltou a verificação de o archive existir, se abriria com "rb+" ou "wb+", para não zerar a todo momento o archive novo
+- Eu deveria implementar uma variável para armazenar os offsets, para pular o offset do membro já inserido sem sobreescrevê-lo
+- Após a atividade implementei uma solução correta e funcional
