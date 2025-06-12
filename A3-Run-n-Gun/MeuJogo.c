@@ -26,30 +26,18 @@ int main(){
 	al_register_event_source(queue, al_get_display_event_source(disp)); // Indica que eventos de tela serão inseridos na nossa fila de eventos
 	al_register_event_source(queue, al_get_timer_event_source(timer)); // Indica que eventos de relógio serão inseridos na nossa fila de eventos
 
-    ALLEGRO_BITMAP* sky = al_load_bitmap("img/PNG/Postapocalypce2/Bright/sky.png");
-    if (!sky) {
-        fprintf(stderr, "Failed to load sky image.\n");
-        return -1;
-    }
-    ALLEGRO_BITMAP* bg_far = al_load_bitmap("img/PNG/Postapocalypce2/Bright/houses&trees_bg.png");
-    if (!bg_far) {
-        fprintf(stderr, "Failed to load far background image.\n");
-        al_destroy_bitmap(sky);
-        return -1;
-    }
-    ALLEGRO_BITMAP* bg_mid = al_load_bitmap("img/PNG/Postapocalypce2/Bright/houses.png");
-    if (!bg_mid) {
-        fprintf(stderr, "Failed to load mid background image.\n");
-        al_destroy_bitmap(sky);
-        al_destroy_bitmap(bg_far);
-        return -1;
-    }
-    ALLEGRO_BITMAP* bg_near = al_load_bitmap("img/PNG/Postapocalypce2/Bright/road.png");
-    if (!bg_near) {
-        fprintf(stderr, "Failed to load near background image.\n");
-        al_destroy_bitmap(sky);
-        al_destroy_bitmap(bg_far);
-        al_destroy_bitmap(bg_mid);
+    ALLEGRO_BITMAP *sky, *bg_far, *bg_mid, *bg_near;
+    sky = al_load_bitmap("img/PNG/Postapocalypce2/Bright/sky.png");
+    bg_far = al_load_bitmap("img/PNG/Postapocalypce2/Bright/houses&trees_bg.png");
+    bg_mid = al_load_bitmap("img/PNG/Postapocalypce2/Bright/houses.png");
+    bg_near = al_load_bitmap("img/PNG/Postapocalypce2/Bright/road.png");
+
+    if (!sky || !bg_far || !bg_mid || !bg_near) {
+        fprintf(stderr, "Falha ao carregar um ou mais backgrounds\n");
+        if (sky) al_destroy_bitmap(sky);
+        if (bg_far) al_destroy_bitmap(bg_far);
+        if (bg_mid) al_destroy_bitmap(bg_mid);
+        if (bg_near) al_destroy_bitmap(bg_near);
         return -1;
     }
 
@@ -68,8 +56,8 @@ int main(){
 		al_wait_for_event(queue, &event);
 
 		if (event.type == ALLEGRO_EVENT_TIMER) {
-			if (key_right) scroll_x -= 5;  // move para a direita
-			if (key_left) scroll_x += 5;   // move para a esquerda
+			if (key_right) scroll_x -= 10;  // move para a direita
+			if (key_left) scroll_x += 10;   // move para a esquerda
 
 			if (scroll_x <= -bg_near_width * scale) scroll_x += bg_near_width * scale;
             if (scroll_x >= bg_near_width * scale) scroll_x -= bg_near_width * scale;
@@ -97,18 +85,18 @@ int main(){
             int scaled_w_mid = w_mid * scale;
             int scaled_w_near = w_near * scale;
 
-            // Camada 1: céu fixo
+            // Camada 1: céu
             al_draw_scaled_bitmap(sky, 0, 0, w_sky, al_get_bitmap_height(sky), 0, 0, X_SCREEN, Y_SCREEN, 0);
 
-            // Camada 2: fundo distante (movimento 0.25x)
-            al_draw_scaled_bitmap(bg_far, 0, 0, w_far, al_get_bitmap_height(bg_far), (int)(scroll_x * 0.25), 0, scaled_w_far, Y_SCREEN, 0);
-            al_draw_scaled_bitmap(bg_far, 0, 0, w_far, al_get_bitmap_height(bg_far), (int)(scroll_x * 0.25) + scaled_w_far, 0, scaled_w_far, Y_SCREEN, 0);
+            // Camada 2: casas e árvores distantes
+            al_draw_scaled_bitmap(bg_far, 0, 0, w_far, al_get_bitmap_height(bg_far), scroll_x, 0, scaled_w_far, Y_SCREEN, 0);
+            al_draw_scaled_bitmap(bg_far, 0, 0, w_far, al_get_bitmap_height(bg_far), scroll_x + scaled_w_far, 0, scaled_w_far, Y_SCREEN, 0);
 
-            // Camada 3: meio (movimento 0.5x)
-            al_draw_scaled_bitmap(bg_mid, 0, 0, w_mid, al_get_bitmap_height(bg_mid), scroll_x * 0.5, 0, scaled_w_mid, Y_SCREEN, 0);
-            al_draw_scaled_bitmap(bg_mid, 0, 0, w_mid, al_get_bitmap_height(bg_mid), scroll_x * 0.5 + scaled_w_mid, 0, scaled_w_mid, Y_SCREEN, 0);
+            // Camada 3: casas
+            al_draw_scaled_bitmap(bg_mid, 0, 0, w_mid, al_get_bitmap_height(bg_mid), scroll_x, 0, scaled_w_mid, Y_SCREEN, 0);
+            al_draw_scaled_bitmap(bg_mid, 0, 0, w_mid, al_get_bitmap_height(bg_mid), scroll_x + scaled_w_mid, 0, scaled_w_mid, Y_SCREEN, 0);
 
-            // Camada 4: chão (movimento total)
+            // Camada 4: chão
             al_draw_scaled_bitmap(bg_near, 0, 0, w_near, al_get_bitmap_height(bg_near), scroll_x, 0, scaled_w_near, Y_SCREEN, 0);
             al_draw_scaled_bitmap(bg_near, 0, 0, w_near, al_get_bitmap_height(bg_near), scroll_x + scaled_w_near, 0, scaled_w_near, Y_SCREEN, 0);
 
