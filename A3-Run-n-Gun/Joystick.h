@@ -1,20 +1,20 @@
-#ifndef __JOYSTICK__ 																												//Guardas de inclusão 
-#define __JOYSTICK__																												//Guardas de inclusão 
+#ifndef __JOYSTICK__
+#define __JOYSTICK__
 
-typedef struct {																													//Definição da estrutura de um controle 
-	unsigned char right;																											//Botão de movimentação à direta 
-	unsigned char left;																												//Botão de movimentação à esquerda 
-	unsigned char up;																												//Botão de movimentação para cima 
-	unsigned char down;																												//Botão de disparo																											//Botão de movimentação para baixo 
+typedef struct {
+	unsigned char right;
+	unsigned char left;
+	unsigned char up;
+	unsigned char down;
 	unsigned char fire;
-} joystick;																															//Definição do nome da estrutura 
+} joystick;
 
-joystick* joystick_create();																										//Protótipo da função de criação de um controle 
-void joystick_destroy(joystick *element);																							//Protótipo da função de destruição de um controle 
-void joystick_right(joystick *element);																								//Protótipo da função de ativação/desativação do botão de movimentação à direita 
-void joystick_left(joystick *element);																								//Protótipo da função de ativação/desativação do botão de movimentação à esquerda 
-void joystick_up(joystick *element);																								//Protótipo da função de ativação/desativação do botão de movimentação para cima 
-void joystick_down(joystick *element);																								//Protótipo da função de ativação/desativação do botão de movimentação para baixo 
-void joystick_fire(joystick *element);																								//Protótipo da função de ativação/desativação do botão de disparo
+joystick* joystick_create();																										
+void joystick_destroy(joystick *element);
+void joystick_right(joystick *element);
+void joystick_left(joystick *element);
+void joystick_up(joystick *element);
+void joystick_down(joystick *element);
+void joystick_fire(joystick *element);
 
-#endif																																//Guardas de inclusão 
+#endif																																

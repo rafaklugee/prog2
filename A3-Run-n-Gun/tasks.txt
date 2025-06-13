@@ -1,3 +1,4 @@
+- Dividir o jogo em blocos
 - Personagem não sair do limite da tela
 - Personagem parar ao clicar left e right
 	- Implementar joystick que já está feito
