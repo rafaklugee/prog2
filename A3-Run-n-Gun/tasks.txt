@@ -1,0 +1,5 @@
+- Personagem não sair do limite da tela
+- Personagem parar ao clicar left e right
+	- Implementar joystick que já está feito
+- ...Implementar tiros...
+- ...etc..

@@ -26,6 +26,7 @@ int main(){
 	al_register_event_source(queue, al_get_display_event_source(disp)); // Indica que eventos de tela serão inseridos na nossa fila de eventos
 	al_register_event_source(queue, al_get_timer_event_source(timer)); // Indica que eventos de relógio serão inseridos na nossa fila de eventos
 
+    // Carrega imagens do background do mapa
     ALLEGRO_BITMAP *sky, *bg_far, *bg_mid, *bg_near;
     sky = al_load_bitmap("img/PNG/Postapocalypce2/Bright/sky.png");
     bg_far = al_load_bitmap("img/PNG/Postapocalypce2/Bright/houses&trees_bg.png");
@@ -41,6 +42,7 @@ int main(){
         return -1;
     }
 
+    // Variáveis do background
     float scale = (float)Y_SCREEN / al_get_bitmap_height(bg_far);
     int bg_near_width = al_get_bitmap_width(bg_near);
     float scroll_x = 0; // Variável para controlar o deslocamento horizontal do fundo
@@ -49,34 +51,97 @@ int main(){
     bool key_right = false; // Variável para verificar se a tecla de seta direita está pressionada
     bool key_left = false; // Variável para verificar se a tecla de seta esquerda está pressionada
 
+    // Variáveis do player
+    float player_x = X_SCREEN / 2, player_y = Y_SCREEN - 325; // Poisição do jogador em relação ao chão
+    float player_speed = 8;
+    bool player_moving = false;
+
+    // Carrega sprites do player
+    ALLEGRO_BITMAP *player_idle = al_load_bitmap("sprites/gangsters/Gangsters_1/Idle.png");
+    ALLEGRO_BITMAP *player_idle_left = al_load_bitmap("sprites/gangsters/Gangsters_1/Idle_Otherside.png");
+    ALLEGRO_BITMAP *player_run = al_load_bitmap("sprites/gangsters/Gangsters_1/Run.png");
+    if (!player_idle || !player_idle_left || !player_run) {
+        fprintf(stderr, "Falha ao carregar sprites do player\n");
+        return -1;
+    }
+
+    // Adicione essas variáveis para animação:
+    int run_frame = 0;
+    int run_max_frames = 10;
+    int run_frame_width = al_get_bitmap_width(player_run) / run_max_frames;
+    int run_frame_height = al_get_bitmap_height(player_run);
+
+    int run_frame_delay = 2; // Ajuste para controlar a velocidade da animação
+    int run_frame_count = 0;
+
+    int player_direction = 1; // 1 = direita, -1 = esquerda
+
+    int idle_frame_width = al_get_bitmap_width(player_idle) / 5;
+    int idle_frame_height = al_get_bitmap_height(player_idle);
+
+    int idle_frame_width_left = al_get_bitmap_width(player_idle_left) / 5;
+    int idle_frame_height_left = al_get_bitmap_height(player_idle_left);
 
     ALLEGRO_EVENT event;
     al_start_timer(timer);
     while (running) {
-		al_wait_for_event(queue, &event);
+        al_wait_for_event(queue, &event);
 
-		if (event.type == ALLEGRO_EVENT_TIMER) {
-			if (key_right) scroll_x -= 10;  // move para a direita
-			if (key_left) scroll_x += 10;   // move para a esquerda
+        if (event.type == ALLEGRO_EVENT_TIMER) {
+            player_moving = false;
+            float player_x_min = X_SCREEN / 2; // Posição inicial do player
 
-			if (scroll_x <= -bg_near_width * scale) scroll_x += bg_near_width * scale;
+            if (key_right) {
+                scroll_x -= 7;
+                player_x += player_speed;
+                player_moving = true;
+                player_direction = 1;
+            }
+            if (key_left) {
+                scroll_x += 7;
+                player_x -= player_speed;
+                player_moving = true;
+                player_direction = -1;
+            }
+
+            // Limita o player_x ao mínimo permitido (posição inicial)
+            if (player_x < player_x_min) player_x = player_x_min;
+            //if (player_x > X_SCREEN - idle_frame_width * player_scale) player_x = X_SCREEN - idle_frame_width * player_scale;
+
+            // Animação do player andando
+            if (player_moving) {
+                run_frame_count++;
+                if (run_frame_count >= run_frame_delay) {
+                    run_frame = (run_frame + 1) % run_max_frames;
+                    run_frame_count = 0;
+                }
+            } else {
+                run_frame = 0; // Reseta run quando parado
+                run_frame_count = 0;
+            }
+
+            // Restringe o player dentro da tela
+            if (player_x < 0) player_x = 0;
+            if (player_x > X_SCREEN - al_get_bitmap_width(player_idle)) player_x = X_SCREEN - al_get_bitmap_width(player_idle);
+
+            if (scroll_x <= -bg_near_width * scale) scroll_x += bg_near_width * scale;
             if (scroll_x >= bg_near_width * scale) scroll_x -= bg_near_width * scale;
 
-			redraw = true;
-		}
-		else if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
-			running = false;
-		}
-		else if (event.type == ALLEGRO_EVENT_KEY_DOWN) {
-			if (event.keyboard.keycode == ALLEGRO_KEY_RIGHT) key_right = true;
-			if (event.keyboard.keycode == ALLEGRO_KEY_LEFT) key_left = true;
-		}
-		else if (event.type == ALLEGRO_EVENT_KEY_UP) {
-			if (event.keyboard.keycode == ALLEGRO_KEY_RIGHT) key_right = false;
-			if (event.keyboard.keycode == ALLEGRO_KEY_LEFT) key_left = false;
-		}
+            redraw = true;
+        }
+        else if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+            running = false;
+        }
+        else if (event.type == ALLEGRO_EVENT_KEY_DOWN) {
+            if (event.keyboard.keycode == ALLEGRO_KEY_RIGHT) key_right = true;
+            if (event.keyboard.keycode == ALLEGRO_KEY_LEFT) key_left = true;
+        }
+        else if (event.type == ALLEGRO_EVENT_KEY_UP) {
+            if (event.keyboard.keycode == ALLEGRO_KEY_RIGHT) key_right = false;
+            if (event.keyboard.keycode == ALLEGRO_KEY_LEFT) key_left = false;
+        }
 
-		if (redraw && al_is_event_queue_empty(queue)) {
+        if (redraw && al_is_event_queue_empty(queue)) {
             int w_sky = al_get_bitmap_width(sky);
             int w_far = al_get_bitmap_width(bg_far);
             int w_mid = al_get_bitmap_width(bg_mid);
@@ -100,6 +165,51 @@ int main(){
             al_draw_scaled_bitmap(bg_near, 0, 0, w_near, al_get_bitmap_height(bg_near), scroll_x, 0, scaled_w_near, Y_SCREEN, 0);
             al_draw_scaled_bitmap(bg_near, 0, 0, w_near, al_get_bitmap_height(bg_near), scroll_x + scaled_w_near, 0, scaled_w_near, Y_SCREEN, 0);
 
+            // Desenha o player
+            float player_scale = 2.0;
+
+            if (player_moving) {
+                if (player_direction == 1) {
+                    al_draw_scaled_bitmap(
+                        player_run,
+                        run_frame * run_frame_width, 0,
+                        run_frame_width, run_frame_height,
+                        player_x, player_y,
+                        run_frame_width * player_scale, run_frame_height * player_scale,
+                        0
+                    );
+                } else {
+                    al_draw_scaled_bitmap(
+                        player_run,
+                        run_frame * run_frame_width, 0,
+                        run_frame_width, run_frame_height,
+                        player_x, player_y,
+                        run_frame_width * player_scale, run_frame_height * player_scale,
+                        ALLEGRO_FLIP_HORIZONTAL
+                    );
+                }
+            } else {
+                if (player_direction == 1) {
+                    // Usa apenas o primeiro frame do idle
+                    al_draw_scaled_bitmap( // Se está virando para a direita
+                        player_idle,
+                        0, 0,
+                        idle_frame_width, idle_frame_height,
+                        player_x, player_y,
+                        idle_frame_width * player_scale, idle_frame_height * player_scale,
+                        0
+                    );
+                } else {
+                    al_draw_scaled_bitmap( // Se está virando para a esquerda (aqui usando o sprite de idle_left para ficar sem bug)
+                        player_idle_left,
+                        0, 0,
+                        idle_frame_width_left, idle_frame_height_left,
+                        player_x, player_y,
+                        idle_frame_width_left * player_scale, idle_frame_height_left * player_scale,
+                        0
+                    );
+                }
+            }
             al_flip_display(); // Atualiza a tela para mostrar as mudanças
             redraw = false; // Reseta a variável de redesenho
 		}
@@ -113,6 +223,8 @@ int main(){
     al_destroy_event_queue(queue);
     al_destroy_timer(timer);
     al_destroy_display(disp);
+    al_destroy_bitmap(player_idle);
+    al_destroy_bitmap(player_run);
     return 0;
 
 
