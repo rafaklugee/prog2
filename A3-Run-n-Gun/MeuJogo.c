@@ -167,7 +167,6 @@ int main(){
 
             // Desenha o player
             float player_scale = 2.0;
-
             if (player_moving) {
                 if (player_direction == 1) {
                     al_draw_scaled_bitmap(
