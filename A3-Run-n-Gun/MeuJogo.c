@@ -8,29 +8,29 @@
 #include <math.h>
 
 #include "Player1.h"
+#include "Background.h"
 
 #define X_SCREEN 800
 #define Y_SCREEN 600
+#define CAMERA_LEFT_MARGIN (X_SCREEN / 14)
+#define CAMERA_RIGHT_MARGIN (X_SCREEN - (X_SCREEN / 4))
 
-void update_position(player1 *p) {
-    if (p->control->left) {
-        player1_move(p, 1, 0, X_SCREEN, Y_SCREEN); // Mover para a esquerda
-    }
-    if (p->control->right) {
-        player1_move(p, 1, 1, X_SCREEN, Y_SCREEN); // Mover para a direita
-    }
-}
+// Defina o tamanho total do cenário (10x o fundo)
+#define BG_REPEAT 10
 
-#define DIR_RIGHT 1
-#define DIR_LEFT  -1
-int last_dir = DIR_RIGHT;
+// Adicione uma variável para a posição do personagem no mundo
+int player_world_x = 50;
+
+#define DIR_RIGHT 1 // Direção para a direita é 1
+#define DIR_LEFT  -1 // Direção para a esquerda é -1
+int last_dir = DIR_RIGHT; // Armazena a última direção do player (começa na direita)
 
 int main(){
 	
 	al_init();	//Faz a preparação de requisitos da biblioteca Allegro
 	al_init_primitives_addon();	//Faz a inicialização dos addons das imagens básicas
     al_init_image_addon(); // Habilita o addon de imagens, que permite carregar imagens em formatos como PNG, JPEG, etc.
-    al_init_font_addon(); // Habilita o addon de fontes, que permite carregar e usar fontes TrueType (TTF) e bitmap
+    al_init_font_addon(); // Habilita o addon de fontes, que permite carregar e usar fontes TTF e bitmap
 	al_install_keyboard(); //Habilita a entrada via teclado (eventos de teclado), no programa
 
     ALLEGRO_TIMER* timer = al_create_timer(1.0 / 30.0);	// Cria o relógio do jogo; isso indica quantas atualizações serão realizadas por segundo (30, neste caso)
@@ -42,195 +42,141 @@ int main(){
 	al_register_event_source(queue, al_get_display_event_source(disp)); // Indica que eventos de tela serão inseridos na nossa fila de eventos
 	al_register_event_source(queue, al_get_timer_event_source(timer)); // Indica que eventos de relógio serão inseridos na nossa fila de eventos
 
-    // Carrega imagens do background do mapa
-    ALLEGRO_BITMAP *sky, *bg_far, *bg_mid, *bg_near;
-    sky = al_load_bitmap("img/PNG/Postapocalypce2/Bright/sky.png");
-    bg_far = al_load_bitmap("img/PNG/Postapocalypce2/Bright/houses&trees_bg.png");
-    bg_mid = al_load_bitmap("img/PNG/Postapocalypce2/Bright/houses.png");
-    bg_near = al_load_bitmap("img/PNG/Postapocalypce2/Bright/road.png");
-
-    if (!sky || !bg_far || !bg_mid || !bg_near) {
-        fprintf(stderr, "Falha ao carregar um ou mais backgrounds\n");
-        if (sky) al_destroy_bitmap(sky);
-        if (bg_far) al_destroy_bitmap(bg_far);
-        if (bg_mid) al_destroy_bitmap(bg_mid);
-        if (bg_near) al_destroy_bitmap(bg_near);
+    // Criando o background
+    Background *bg = background_create(
+        "img/PNG/Postapocalypce2/Bright/sky.png",
+        "img/PNG/Postapocalypce2/Bright/houses&trees_bg.png",
+        "img/PNG/Postapocalypce2/Bright/houses.png",
+        "img/PNG/Postapocalypce2/Bright/road.png",
+        Y_SCREEN, BG_REPEAT
+    );
+    if (!bg) {
+        fprintf(stderr, "Falha ao criar o background\n");
         return -1;
     }
 
-    // Carrega sprites do player
-    ALLEGRO_BITMAP *player_idle = al_load_bitmap("sprites/gangsters/Gangsters_1/Idle.png");
-    ALLEGRO_BITMAP *player_idle_left = al_load_bitmap("sprites/gangsters/Gangsters_1/Idle_Otherside.png");
-    ALLEGRO_BITMAP *player_run = al_load_bitmap("sprites/gangsters/Gangsters_1/Run.png");
-    if (!player_idle || !player_idle_left || !player_run) {
-        fprintf(stderr, "Falha ao carregar sprites do player\n");
-        return -1;
-    }
+    // Criando o player
+    player1 *p = create_player1(Y_SCREEN - 325, X_SCREEN, Y_SCREEN);
+        if (!p) {
+            fprintf(stderr, "Falha ao criar o jogador\n");
+            return -1;
+        }
+        if (!player1_load_sprites(
+                p,
+                "sprites/gangsters/Gangsters_1/Idle.png",
+                "sprites/gangsters/Gangsters_1/Idle_Otherside.png",
+                "sprites/gangsters/Gangsters_1/Run.png",
+                "sprites/gangsters/Gangsters_1/Squat_In.png",
+                "sprites/gangsters/Gangsters_1/Squat_Out.png",
+                "sprites/gangsters/Gangsters_1/Jump.png"
+            )) {
+            fprintf(stderr, "Falha ao carregar sprites do player\n");
+            player1_destroy(p);
+            return -1;
+        }
 
-    // Variáveis do background
-    float scale = (float)Y_SCREEN / al_get_bitmap_height(bg_far);
-    float scroll_x = 0; // Variável para controlar o deslocamento horizontal do fundo
     bool redraw = true; // Variável para controlar quando a tela deve ser redesenhada
     bool running = true; // Variável para controlar o loop principal do jogo
 
-    player1 *p = create_player1(50, X_SCREEN / 2, Y_SCREEN - 100, X_SCREEN, Y_SCREEN); // Cria o jogador na posição central da tela
-    if (!p) {
-        fprintf(stderr, "Falha ao criar o jogador\n");
-        return -1;
-    }
-
-    // Defina a posição fixa do player na tela (exemplo: centro)
-    int player_screen_x = 40;
+    // Defina a posição fixa do player na tela
     int player_screen_y = Y_SCREEN - 325;
 
-    // Adicione essas variáveis antes do while(running)
-    int run_frame = 0;
-    int run_max_frames = 10;
-    int run_frame_width = al_get_bitmap_width(player_run) / run_max_frames;
-    int run_frame_height = al_get_bitmap_height(player_run);
-    int frame_counter = 0;
-    int frame_delay = 3; // Ajuste para controlar a velocidade da animação
+    // Variável que controla a câmera
+    float scroll_x = 0;
 
-    // Defina o fator de escala desejado
-    float player_scale = 2.0f; // 2x maior
+    int current_camera_x = 0;
+
+    // Variável que controla o tamanho do mundo
+    int world_width = BG_REPEAT * bg->scaled_w_near;
+    printf("World Width: %d, Screen Width: %d\n", world_width, X_SCREEN);
 
     ALLEGRO_EVENT event;
     al_start_timer(timer);
     while (running) {
         al_wait_for_event(queue, &event);
+        int player_screen_x;
 
+        int camera_min_x = 0;
+        int camera_max_x = world_width - X_SCREEN;
+        if (camera_max_x < camera_min_x) camera_max_x = camera_min_x;
+
+        // --- CÁLCULO DA CÂMERA ---
+
+        // Posição do jogador na tela APÓS ter se movido (com base na câmera atual)
+        int player_screen_x_current_frame = player_world_x - current_camera_x;
+
+        // 1. Lógica para movimento para a DIREITA
+        if (p->control->right) {
+            // Se o player está se movendo para a direita, a câmera só se move
+            // se o player atingir a margem direita da tela.
+            if (player_screen_x_current_frame > CAMERA_RIGHT_MARGIN) {
+                // A câmera deve mover-se junto com o player para manter a distância da margem.
+                current_camera_x += (player_screen_x_current_frame - CAMERA_RIGHT_MARGIN);
+            }
+        }
+        // 2. Lógica para movimento para a ESQUERDA
+        else if (p->control->left) {
+            // Se o player está se movendo para a esquerda, a câmera só se move
+            // se o player atingir a margem esquerda da tela.
+            if (player_screen_x_current_frame < CAMERA_LEFT_MARGIN) {
+                // A câmera deve mover-se junto com o player para manter a distância da margem.
+                current_camera_x -= (CAMERA_LEFT_MARGIN - player_screen_x_current_frame);
+            }
+        }
+        // Se o player está parado, a câmera não se move (current_camera_x mantém seu valor)
+        // Não precisamos de uma 'else' específica aqui, pois as operações acima
+        // só modificam current_camera_x se as condições de movimento forem atendidas.
+
+        // Garante que current_camera_x esteja sempre dentro dos limites do mundo
+        if (current_camera_x < camera_min_x) {
+            current_camera_x = camera_min_x;
+        }
+        if (current_camera_x > camera_max_x) {
+            current_camera_x = camera_max_x;
+        }
+
+        // --- CÁLCULO DA POSIÇÃO DO PLAYER NA TELA ---
+        // O player é sempre desenhado na sua posição relativa à câmera atual.
+        player_screen_x = player_world_x - current_camera_x;
+
+        // Limita player_screen_x para garantir que ele esteja sempre dentro da tela
+        // Isso é mais para evitar que o sprite saia da tela, mas a lógica da câmera já cuida disso.
+        if (player_screen_x < 0) player_screen_x = 0;
+        if (player_screen_x > X_SCREEN) player_screen_x = X_SCREEN;
+
+
+        // Atualizando o scroll para o background
+        scroll_x = current_camera_x;
+
+        // Se há eventos pendentes na fila e redesenharemos o mapa
         if (redraw && al_is_event_queue_empty(queue)) {
-            int w_sky = al_get_bitmap_width(sky);
-            int w_far = al_get_bitmap_width(bg_far);
-            int w_mid = al_get_bitmap_width(bg_mid);
-            int w_near = al_get_bitmap_width(bg_near);
-            int scaled_w_far = w_far * scale;
-            int scaled_w_mid = w_mid * scale;
-            int scaled_w_near = w_near * scale;
-
-            // Camada 1: céu (não precisa repetir)
-            al_draw_scaled_bitmap(sky, 0, 0, w_sky, al_get_bitmap_height(sky), 0, 0, X_SCREEN, Y_SCREEN, 0);
-
-            // Camada 2: casas e árvores distantes (parallax mais lento)
-            float far_scroll = fmod(scroll_x * 0.3, scaled_w_far);
-            al_draw_scaled_bitmap(bg_far, 0, 0, w_far, al_get_bitmap_height(bg_far), -far_scroll, 0, scaled_w_far, Y_SCREEN, 0);
-            al_draw_scaled_bitmap(bg_far, 0, 0, w_far, al_get_bitmap_height(bg_far), -far_scroll + scaled_w_far, 0, scaled_w_far, Y_SCREEN, 0);
-
-            // Camada 3: casas (parallax médio)
-            float mid_scroll = fmod(scroll_x * 0.6, scaled_w_mid);
-            al_draw_scaled_bitmap(bg_mid, 0, 0, w_mid, al_get_bitmap_height(bg_mid), -mid_scroll, 0, scaled_w_mid, Y_SCREEN, 0);
-            al_draw_scaled_bitmap(bg_mid, 0, 0, w_mid, al_get_bitmap_height(bg_mid), -mid_scroll + scaled_w_mid, 0, scaled_w_mid, Y_SCREEN, 0);
-
-            // Camada 4: chão (parallax rápido)
-            float near_scroll = fmod(scroll_x, scaled_w_near);
-            al_draw_scaled_bitmap(bg_near, 0, 0, w_near, al_get_bitmap_height(bg_near), -near_scroll, 0, scaled_w_near, Y_SCREEN, 0);
-            al_draw_scaled_bitmap(bg_near, 0, 0, w_near, al_get_bitmap_height(bg_near), -near_scroll + scaled_w_near, 0, scaled_w_near, Y_SCREEN, 0);
-
-            ALLEGRO_BITMAP *sprite = player_idle; // sprite padrão parado
-            int inicio_x = 0; // Posição inicial do sprite na ANIMAÇÃO
-            int flip = 0;
-
-            // Correndo para direita
-            if (p->control->left) {
-                sprite = player_run;
-                flip = ALLEGRO_FLIP_HORIZONTAL;
-                last_dir = DIR_LEFT; // Atualiza última direção
-                frame_counter++;
-                if (frame_counter >= frame_delay) {
-                    run_frame = (run_frame + 1) % run_max_frames;
-                    frame_counter = 0;
-                }
-                inicio_x = run_frame * run_frame_width;
-            }
-            // Correndo para esquerda
-            else if (p->control->right) {
-                sprite = player_run;
-                flip = 0;
-                last_dir = DIR_RIGHT; // Atualiza última direção
-                frame_counter++;
-                if (frame_counter >= frame_delay) {
-                    run_frame = (run_frame + 1) % run_max_frames;
-                    frame_counter = 0;
-                }
-                inicio_x = run_frame * run_frame_width;
-            // Parado virado para esquerda ou direita
-            } else {
-                if (last_dir == DIR_LEFT)
-                    sprite = player_idle_left;
-                else
-                    sprite = player_idle;
-            }
-
-            // Desenha o player correndo
-            if (sprite == player_run) {
-                al_draw_scaled_bitmap(
-                    sprite,
-                    inicio_x, 0, run_frame_width, run_frame_height,
-                    player_screen_x, player_screen_y,
-                    run_frame_width * player_scale,
-                    run_frame_height * player_scale,
-                    flip
-                );
-            // Desenha o player parado para direita
-            } else if (sprite == player_idle) {
-                int idle_frame_width = al_get_bitmap_width(player_idle) / 5;
-                int idle_frame_height = al_get_bitmap_height(player_idle);
-                al_draw_scaled_bitmap(
-                    player_idle,
-                    0, 0, idle_frame_width, idle_frame_height,
-                    player_screen_x, player_screen_y,
-                    idle_frame_width * player_scale,
-                    idle_frame_height * player_scale,
-                    0
-                );
-            // Desenha o player parado para esquerda
-            } else if (sprite == player_idle_left) {
-                int idle_left_frame_width = al_get_bitmap_width(player_idle_left) / 5;
-                int idle_left_frame_height = al_get_bitmap_height(player_idle_left);
-                al_draw_scaled_bitmap(
-                    player_idle_left,
-                    0, 0, idle_left_frame_width, idle_left_frame_height,
-                    player_screen_x, player_screen_y,
-                    idle_left_frame_width * player_scale,
-                    idle_left_frame_height * player_scale,
-                    0
-                );
-            }
+            background_draw(bg, scroll_x, X_SCREEN);
+            player1_draw(p, player_screen_x, player_screen_y);
 
             al_flip_display();
             redraw = false;
         }
-
-        if (event.type == ALLEGRO_EVENT_TIMER) {
+        if (event.type == ALLEGRO_EVENT_TIMER) { // Atualiza os eventos do jogo
+            player1_update(p, &player_world_x, world_width, player_screen_y);
             redraw = true;
-
-            // Atualiza o scroll_x conforme o movimento do player
-            if (p->control->right) {
-                scroll_x += 7; // velocidade do player para direita
-            }
-            if (p->control->left) {
-                scroll_x -= 7; // velocidade do player para esquerda
-            }
+            printf("P_World_X: %d | P_Screen_X: %d | Camera_X: %d | World_Width: %d\n",
+            player_world_x, player_screen_x, current_camera_x, world_width);
         }
         else if (event.type == ALLEGRO_EVENT_KEY_DOWN || event.type == ALLEGRO_EVENT_KEY_UP) {
-            if (event.keyboard.keycode == ALLEGRO_KEY_A) joystick_left(p->control);
-            else if (event.keyboard.keycode == ALLEGRO_KEY_D) joystick_right(p->control);
+            player1_handle_event(p, &event); // Atualiza os eventos de teclado do player1
+            if (event.type == ALLEGRO_EVENT_KEY_DOWN && event.keyboard.keycode == ALLEGRO_KEY_ESCAPE)
+                running = false; // Encerra o jogo no "esc"
         }
-        else if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+        else if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
             break;
-        }
-	}
+    }
 
-    al_destroy_bitmap(sky);
-    al_destroy_bitmap(bg_far);
-    al_destroy_bitmap(bg_mid);
-    al_destroy_bitmap(bg_near);
+    background_destroy(bg);
+    player1_destroy(p);
     al_destroy_font(font);
     al_destroy_event_queue(queue);
     al_destroy_timer(timer);
     al_destroy_display(disp);
-    al_destroy_bitmap(player_idle);
-    al_destroy_bitmap(player_run);
     return 0;
 
 
