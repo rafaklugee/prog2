@@ -10,6 +10,7 @@ bullet* bullet_create(unsigned short x, unsigned short y, unsigned char trajecto
 	new_bullet->x = x;																						//Armazena a posição X informada
 	new_bullet->y = y;																						//Armazena a posição Y informada
 	new_bullet->trajectory = trajectory;																	//Armazena a trajetória informada
+	new_bullet->distance_traveled = 0;
 	new_bullet->next = (struct bullet*) next;																//Armazena o próximo projétil informado
 	return new_bullet;																						//Retorna a instância criada de projétil
 }
@@ -23,6 +24,5 @@ void bullet_move(bullet *elements){																			//Implementação da funç
 }
 
 void bullet_destroy(bullet *element){																		//Implementação da função "bullet_destroy"
-
 	free(element);																							//Libera a memória da instância de projétil
 }

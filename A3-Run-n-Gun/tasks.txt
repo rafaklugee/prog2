@@ -1,8 +1,10 @@
-- Implementar tiros
-- Implementar inimigos
+- Centralizar câmera (apenas para ir)
+- Fazer sprite da slime ball
+- Fazer sprites dos corações do player (vida)
+- Implementar reload (cooldown da arma)
+- Implementar hud da arma
+
 - Implementar boss
-- Implementar tela de fim de jogo (game over ou sucesso)
-- Implementar sistema de pontos de vida (inimigos e usuário)
 - Implementar som
 
 [EXTRAS]
@@ -11,4 +13,7 @@
 - Estamina e recarregar arma
 
 [REFINO]
+- Arrumar agachamento (agachar mais ?)
+- Colocar sprites de coração para vida do personagem
+- Arrumar animação de atirar agachado (colocar +1 frame no sprite)
 - Cor diferente quando agacha (squat)

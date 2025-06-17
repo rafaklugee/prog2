@@ -5,6 +5,7 @@
         "allegro5.h": "c",
         "stdlib.h": "c",
         "allegro_primitives.h": "c",
-        "math.h": "c"
+        "math.h": "c",
+        "slimeball.h": "c"
     }
 }

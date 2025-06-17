@@ -1,11 +1,12 @@
 #ifndef __BULLET__ 																																//Guardas de inclusão
 #define __BULLET__																																//Guardas de inclusão
 
-#define BULLET_MOVE 5
+#define BULLET_MOVE 12
 
 typedef struct {																																//Definição da estrutura de um pŕojétil
 	unsigned short x;																															//Local, no eixo x, onde se localiza a bala
 	unsigned short y;																															//Local, no eixo y, onde se localiza a bala
+	unsigned short distance_traveled;																											//Distância percorrida pela bala, em pixels
 	unsigned char trajectory;																													//Trajetória da bala
 	struct bullet *next; 																														//Próxima bala, se houver, formando uma lista encadeada
 } bullet;																																		//Definição do nome da estrutura
