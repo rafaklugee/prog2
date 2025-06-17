@@ -1,19 +1,19 @@
-//Compilação: gcc MeuJogo.c -o game $(pkg-config allegro-5 allegro_main-5 allegro_font-5 allegro_primitives-5 --libs --cflags)
-
 #include <stdio.h>
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_image.h>
+#include <allegro5/allegro_ttf.h>
 #include <math.h>
 
 #include "Player1.h"
 #include "Background.h"
+#include "Menu.h"
 
 #define X_SCREEN 800
 #define Y_SCREEN 600
-#define CAMERA_LEFT_MARGIN (X_SCREEN / 14)
-#define CAMERA_RIGHT_MARGIN (X_SCREEN - (X_SCREEN / 4))
+#define CAMERA_LEFT_MARGIN (X_SCREEN / 4)
+#define CAMERA_RIGHT_MARGIN (X_SCREEN / 2)
 
 // Defina o tamanho total do cenário (10x o fundo)
 #define BG_REPEAT 10
@@ -28,6 +28,7 @@ int last_dir = DIR_RIGHT; // Armazena a última direção do player (começa na 
 int main(){
 	
 	al_init();	//Faz a preparação de requisitos da biblioteca Allegro
+    al_init_ttf_addon(); // Habilita o addon que permite carregar e usar fontes TTF
 	al_init_primitives_addon();	//Faz a inicialização dos addons das imagens básicas
     al_init_image_addon(); // Habilita o addon de imagens, que permite carregar imagens em formatos como PNG, JPEG, etc.
     al_init_font_addon(); // Habilita o addon de fontes, que permite carregar e usar fontes TTF e bitmap
@@ -35,8 +36,10 @@ int main(){
 
     ALLEGRO_TIMER* timer = al_create_timer(1.0 / 30.0);	// Cria o relógio do jogo; isso indica quantas atualizações serão realizadas por segundo (30, neste caso)
 	ALLEGRO_EVENT_QUEUE* queue = al_create_event_queue(); // Cria a fila de eventos; todos os eventos (programação orientada a eventos) 
-	ALLEGRO_FONT* font = al_create_builtin_font(); // Carrega uma fonte padrão para escrever na tela (é bitmap, mas também suporta adicionar fontes ttf)
 	ALLEGRO_DISPLAY* disp = al_create_display(X_SCREEN, Y_SCREEN); // Cria uma janela para o programa, define a largura (x) e a altura (y) da tela em píxeis (800x600, neste caso)
+    ALLEGRO_FONT* font = al_load_ttf_font("fonts/TheGodFather.ttf", 36, 0); // Carrega a fonte TTF que será usada no menu; o tamanho da fonte é 36 pixels
+    if (!font) return -1;
+
 
 	al_register_event_source(queue, al_get_keyboard_event_source()); // Indica que eventos de teclado serão inseridos na nossa fila de eventos
 	al_register_event_source(queue, al_get_display_event_source(disp)); // Indica que eventos de tela serão inseridos na nossa fila de eventos
@@ -55,6 +58,17 @@ int main(){
         return -1;
     }
 
+    // Mostrando o menu com o background
+    int menu_choice = show_menu(disp, font, queue, bg);
+    if (menu_choice == 1) {
+        // Sair selecionado
+        al_destroy_font(font);
+        al_destroy_event_queue(queue);
+        al_destroy_timer(timer);
+        al_destroy_display(disp);
+        return 0;
+    }
+
     // Criando o player
     player1 *p = create_player1(Y_SCREEN - 325, X_SCREEN, Y_SCREEN);
         if (!p) {
@@ -66,8 +80,7 @@ int main(){
                 "sprites/gangsters/Gangsters_1/Idle.png",
                 "sprites/gangsters/Gangsters_1/Idle_Otherside.png",
                 "sprites/gangsters/Gangsters_1/Run.png",
-                "sprites/gangsters/Gangsters_1/Squat_In.png",
-                "sprites/gangsters/Gangsters_1/Squat_Out.png",
+                "sprites/gangsters/Gangsters_1/Squat.png",
                 "sprites/gangsters/Gangsters_1/Jump.png"
             )) {
             fprintf(stderr, "Falha ao carregar sprites do player\n");
@@ -88,7 +101,6 @@ int main(){
 
     // Variável que controla o tamanho do mundo
     int world_width = BG_REPEAT * bg->scaled_w_near;
-    printf("World Width: %d, Screen Width: %d\n", world_width, X_SCREEN);
 
     ALLEGRO_EVENT event;
     al_start_timer(timer);
@@ -159,8 +171,6 @@ int main(){
         if (event.type == ALLEGRO_EVENT_TIMER) { // Atualiza os eventos do jogo
             player1_update(p, &player_world_x, world_width, player_screen_y);
             redraw = true;
-            printf("P_World_X: %d | P_Screen_X: %d | Camera_X: %d | World_Width: %d\n",
-            player_world_x, player_screen_x, current_camera_x, world_width);
         }
         else if (event.type == ALLEGRO_EVENT_KEY_DOWN || event.type == ALLEGRO_EVENT_KEY_UP) {
             player1_handle_event(p, &event); // Atualiza os eventos de teclado do player1

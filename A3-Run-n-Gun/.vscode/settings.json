@@ -3,6 +3,8 @@
         "cstdlib": "c",
         "allegro_image.h": "c",
         "allegro5.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "allegro_primitives.h": "c",
+        "math.h": "c"
     }
 }

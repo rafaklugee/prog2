@@ -1,6 +1,14 @@
-- Implementar menu
-- Implementar agachamento de melhor qualidade
-- ...Implementar tiros...
-- ...Implementar inimigos...
-- ...Implementar boss...
-- ...etc..
+- Implementar tiros
+- Implementar inimigos
+- Implementar boss
+- Implementar tela de fim de jogo (game over ou sucesso)
+- Implementar sistema de pontos de vida (inimigos e usuário)
+- Implementar som
+
+[EXTRAS]
+- Adicionar outros gangsters para o usuário selecionar
+- Pause
+- Estamina e recarregar arma
+
+[REFINO]
+- Cor diferente quando agacha (squat)

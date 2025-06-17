@@ -26,15 +26,14 @@ player1* create_player1(unsigned short initial_y, unsigned short max_x, unsigned
     return p;
 }
 
-int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, const char *run, const char *squat_in, const char *squat_out, const char *jump) {
+int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, const char *run, const char *squat, const char *jump) {
     p->idle = al_load_bitmap(idle);
     p->idle_left = al_load_bitmap(idle_left);
     p->run = al_load_bitmap(run);
-    p->squat_in = al_load_bitmap(squat_in);
-    p->squat_out = al_load_bitmap(squat_out);
+    p->squat = al_load_bitmap(squat);
     p->jump = al_load_bitmap(jump);
 
-    if (!p->idle || !p->idle_left || !p->run || !p->squat_in || !p->squat_out || !p->jump)
+    if (!p->idle || !p->idle_left || !p->run || !p->squat || !p->jump)
         return 0;
 
     // Frames e dimensões
@@ -43,20 +42,21 @@ int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, co
     p->run_frame_width = al_get_bitmap_width(p->run) / p->run_max_frames;
     p->run_frame_height = al_get_bitmap_height(p->run);
 
-    p->squat_max_frames = 4;
+    p->squat_max_frames = 3;
     p->squat_frame = 0;
-    p->squat_frame_width = al_get_bitmap_width(p->squat_in) / p->squat_max_frames;
-    p->squat_frame_height = al_get_bitmap_height(p->squat_in);
-
-    p->squat_out_max_frames = 4;
-    p->squat_out_frame = 0;
-    p->squat_out_frame_width = al_get_bitmap_width(p->squat_out) / p->squat_out_max_frames;
-    p->squat_out_frame_height = al_get_bitmap_height(p->squat_out);
+    p->squat_frame_width = al_get_bitmap_width(p->squat) / p->squat_max_frames;
+    p->squat_frame_height = al_get_bitmap_height(p->squat);
 
     p->jump_max_frames = 10;
     p->jump_frame = 0;
     p->jump_frame_width = al_get_bitmap_width(p->jump) / p->jump_max_frames;
     p->jump_frame_height = al_get_bitmap_height(p->jump);
+
+    p->idle_max_frames = 6;
+    p->idle_frame = 0;
+    p->idle_frame_width = al_get_bitmap_width(p->idle) / p->idle_max_frames;
+    p->idle_frame_height = al_get_bitmap_height(p->idle);
+    p->idle_frame_delay = 7;
 
     return 1;
 }
@@ -91,11 +91,10 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
     ALLEGRO_BITMAP *sprite = p->idle;
     int inicio_x = 0;
     int flip = 0;
-    int idle_frame_width = al_get_bitmap_width(p->idle) / 5;
     int idle_frame_height = al_get_bitmap_height(p->idle);
-    int squat_y_offset = (idle_frame_height - p->squat_frame_height) * p->player_scale - 50;
+    int squat_y_offset = (idle_frame_height - p->squat_frame_height) * p->player_scale;
 
-    // Lógica de animação (simplificada, adapte conforme seu jogo)
+    // Lógica de animação
     if (p->is_jumping) {
         sprite = p->jump;
         flip = (p->last_dir == DIR_LEFT) ? ALLEGRO_FLIP_HORIZONTAL : 0;
@@ -118,7 +117,7 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
     else if (p->control->down) {
         // Squat In
         if (!p->squat_anim_done) {
-            sprite = p->squat_in;
+            sprite = p->squat;
             flip = (p->last_dir == DIR_LEFT) ? ALLEGRO_FLIP_HORIZONTAL : 0;
             p->frame_counter++;
             if (p->frame_counter >= p->frame_delay) {
@@ -132,43 +131,22 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
             }
             inicio_x = p->squat_frame * p->squat_frame_width;
         } else {
-            sprite = p->squat_in;
+            sprite = p->squat;
             flip = (p->last_dir == DIR_LEFT) ? ALLEGRO_FLIP_HORIZONTAL : 0;
             inicio_x = (p->squat_max_frames - 1) * p->squat_frame_width;
             p->is_squatting = 1;
         }
-        float squat_scale = p->player_scale * 1.25f;
+        float squat_scale = p->player_scale;
+        float x_offset = 0;
+        if (flip == ALLEGRO_FLIP_HORIZONTAL) {
+            x_offset = -40; // ajuste negativo para flip, mude o valor conforme necessário
+        }
         al_draw_scaled_bitmap(
             sprite,
             inicio_x, 0, p->squat_frame_width, p->squat_frame_height,
-            player_screen_x, p->player_y + squat_y_offset,
+            player_screen_x + 20 + x_offset, p->player_y + squat_y_offset,
             p->squat_frame_width * squat_scale,
             p->squat_frame_height * squat_scale,
-            flip
-        );
-        return;
-    }
-    else if (p->is_squatting_out) {
-        sprite = p->squat_out;
-        flip = (p->last_dir == DIR_LEFT) ? ALLEGRO_FLIP_HORIZONTAL : 0;
-        p->frame_counter++;
-        if (p->frame_counter >= p->frame_delay) {
-            p->squat_out_frame++;
-            p->frame_counter = 0;
-        }
-        if (p->squat_out_frame >= p->squat_out_max_frames) {
-            p->squat_out_frame = 0;
-            p->is_squatting_out = 0;
-            sprite = (p->last_dir == DIR_LEFT) ? p->idle_left : p->idle;
-        }
-        inicio_x = p->squat_out_frame * p->squat_out_frame_width;
-        float squat_scale = p->player_scale * 1.25f;
-        al_draw_scaled_bitmap(
-            sprite,
-            inicio_x, 0, p->squat_out_frame_width, p->squat_out_frame_height,
-            player_screen_x + 20, p->player_y + squat_y_offset,
-            p->squat_out_frame_width * squat_scale,
-            p->squat_out_frame_height * squat_scale,
             flip
         );
         return;
@@ -224,12 +202,21 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
     p->squat_anim_done = 0;
     p->is_squatting = 0;
     sprite = (p->last_dir == DIR_LEFT) ? p->idle_left : p->idle;
+
+    // Atualiza frame do Idle
+    p->frame_counter++;
+    if (p->frame_counter >= p->idle_frame_delay) {
+        p->idle_frame = (p->idle_frame + 1) % p->idle_max_frames;
+        p->frame_counter = 0;
+    }
+    int idle_frame_x = p->idle_frame * p->idle_frame_width;
+
     al_draw_scaled_bitmap(
         sprite,
-        0, 0, idle_frame_width, idle_frame_height,
+        idle_frame_x, 0, p->idle_frame_width, p->idle_frame_height,
         player_screen_x, p->player_y,
-        idle_frame_width * p->player_scale,
-        idle_frame_height * p->player_scale,
+        p->idle_frame_width * p->player_scale,
+        p->idle_frame_height * p->player_scale,
         0
     );
 }
@@ -265,7 +252,6 @@ void player1_handle_event(player1 *p, ALLEGRO_EVENT *event) {
                 p->squat_anim_done = 0;
                 p->squat_frame = 0;
                 p->is_squatting_out = 1;
-                p->squat_out_frame = 0;
                 p->frame_counter = 0;
             }
         }
@@ -277,8 +263,7 @@ void player1_destroy(player1 *p) {
     if (p->idle) al_destroy_bitmap(p->idle);
     if (p->idle_left) al_destroy_bitmap(p->idle_left);
     if (p->run) al_destroy_bitmap(p->run);
-    if (p->squat_in) al_destroy_bitmap(p->squat_in);
-    if (p->squat_out) al_destroy_bitmap(p->squat_out);
+    if (p->squat) al_destroy_bitmap(p->squat);
     if (p->jump) al_destroy_bitmap(p->jump);
     //if (p->gun) pistol_destroy(p->gun);
     free(p);
