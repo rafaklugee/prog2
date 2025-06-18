@@ -10,8 +10,7 @@
 
 void reset_game_state(player1 **p, enemy **enemies, int *player_world_x, int *current_camera_x, int player_screen_y);
 void draw_hud(player1 *p, ALLEGRO_FONT *font);
-void enemy_check_slime_collisions_with_player(
-    enemy *enemies,
+void check_slime_collision_with_player(
     player1 *p,
     int current_camera_x,
     int player_hitbox_x,

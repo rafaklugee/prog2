@@ -12,6 +12,8 @@
 #include "Enemy.h"
 #include "Camera.h"
 #include "Utils.h"
+#include "SlimeBall.h"
+#include "Boss.h"
 
 #define X_SCREEN 800
 #define Y_SCREEN 600
@@ -19,7 +21,7 @@
 #define CAMERA_RIGHT_MARGIN (X_SCREEN / 3)
 
 // Defina o tamanho total do cenário (10x o fundo)
-#define BG_REPEAT 10
+#define BG_REPEAT 4
 
 // Variável para a posição do personagem no mundo
 int player_world_x = 50;
@@ -29,6 +31,12 @@ enemy *enemies = NULL;
 
 // Mostrar hitboxes
 bool show_hitboxes = false; 
+
+// Lista encadeada de slime balls
+slime_ball *slime_balls = NULL;
+
+// Variável para o boss final
+boss *final_boss = NULL;
 
 #define DIR_RIGHT 1 // Direção para a direita é 1
 #define DIR_LEFT  -1 // Direção para a esquerda é -1
@@ -105,10 +113,18 @@ int main(){
             return -1;
         }
 
-    // Testando inimigos
+    // Criando inimigos (3)
     enemies = enemy_create(900, Y_SCREEN - 325, 1.0, "sprites/zombies/Zombie_3/Walk.png");
     enemies->next = enemy_create(1300, Y_SCREEN - 325, 0.75, "sprites/zombies/Zombie_3/Walk.png");
     enemies->next->next = enemy_create(1800, Y_SCREEN - 325, 0.5, "sprites/zombies/Zombie_3/Walk.png");
+
+    // Criando o boss, mas inativo
+    final_boss = boss_create(
+        BG_REPEAT * bg->scaled_w_near - 300, // posição final do mapa
+        Y_SCREEN - 325, // ajuste vertical para o chão
+        3.5f,
+        "sprites/boss/3_Big_Bloated/Big_bloated_idle.png"
+    );
 
     bool redraw = true; // Variável para controlar quando a tela deve ser redesenhada
     bool running = true; // Variável para controlar o loop principal do jogo
@@ -171,6 +187,13 @@ int main(){
                 al_draw_rectangle(hx, hy, hx + hw, hy + hh, al_map_rgb(0, 0, 255), 2);
             }
 
+            // Desenhar todas as slime balls
+            slime_ball_draw(slime_balls, current_camera_x);
+
+            // Desenhar o boss final se ele estiver ativo
+            if (final_boss && final_boss->is_active) {
+                boss_draw(final_boss, current_camera_x, show_hitboxes);
+            }
 
             al_flip_display();
             redraw = false;
@@ -184,8 +207,8 @@ int main(){
             // Atualizando todos os inimigos
             enemy_update_all(enemies);
 
-            // Atualize todas as slime balls dos inimigos
-            enemy_update_slimes(enemies, world_width);
+            // Atualizar todas as slime balls
+            slime_ball_update(&slime_balls, world_width);
 
             // Colisão de balas com inimigos
             enemy_check_bullet_collisions(enemies, p->gun);
@@ -193,16 +216,54 @@ int main(){
             // Removendo inimigos mortos cujo cooldown acabou
             enemy_remove_dead(&enemies);
 
+            // Se acabaram os inimigos, ativa o boss final
+            if (!enemies && final_boss && !final_boss->is_active) {
+                final_boss->is_active = 1;
+            }
+
             // Calcule a hitbox do player na tela
             int player_hitbox_x, player_hitbox_y, player_hitbox_w, player_hitbox_h;
             player1_get_hitbox(p, player_screen_x, player_screen_y, &player_hitbox_x, &player_hitbox_y, &player_hitbox_w, &player_hitbox_h);
 
-            // Colisão das slime balls com o player
-            enemy_check_slime_collisions_with_player(
-                enemies, p, current_camera_x,
+            check_slime_collision_with_player(
+                p, current_camera_x,
                 player_hitbox_x, player_hitbox_y, player_hitbox_w, player_hitbox_h,
                 player_screen_y
             );
+
+            // Checa colisão dos tiros com o boss
+            if (final_boss && final_boss->is_active && final_boss->health > 0) {
+                bullet **curr = &(p->gun->shots);
+                int bx = final_boss->x + final_boss->hitbox_offset_x;
+                int by = final_boss->y + final_boss->hitbox_offset_y;
+                int bw = final_boss->hitbox_w;
+                int bh = final_boss->hitbox_h;
+                while (*curr) {
+                    bullet *b = *curr;
+                    if (b->x > bx && b->x < bx + bw &&
+                        b->y > by && b->y < by + bh) {
+                        // Só aplica dano se não está hurt, mas SEMPRE remove o tiro!
+                        if (!final_boss->is_hurt) {
+                            final_boss->health--;
+                            final_boss->is_hurt = 1;
+                            final_boss->hurt_timer = 10;
+                        }
+                        *curr = (bullet*)b->next;
+                        bullet_destroy(b);
+                        break; // só um tiro por frame (tirar ou não esse break)
+                    } else {
+                        curr = (bullet**)&((*curr)->next);
+                    }
+                }
+            }
+
+            // Atualizar todas as slime balls
+            slime_ball_update(&slime_balls, world_width);
+
+            // Atualiza o boss se ele estiver ativo
+            if (final_boss && final_boss->is_active) {
+                boss_update(final_boss);
+            }
 
             redraw = true;
         }
@@ -237,6 +298,7 @@ int main(){
     al_destroy_font(font);
     slime_ball_unload_sprite();
     enemy_destroy_all(enemies);
+    boss_destroy(final_boss);
     al_destroy_event_queue(queue);
     al_destroy_timer(timer);
     al_destroy_display(disp);

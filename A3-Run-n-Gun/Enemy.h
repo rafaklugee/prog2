@@ -2,7 +2,6 @@
 #define __ENEMY_H__
 
 #include <allegro5/allegro5.h>
-#include "SlimeBall.h"
 #include "Pistol.h"
 
 typedef enum { ENEMY_ALIVE, ENEMY_DEAD } enemy_state; // Novo enum para estado
@@ -25,10 +24,8 @@ typedef struct enemy {
     int attack_frame, attack_max_frames, attack_frame_width, attack_frame_height;
     int attack_frame_counter, attack_frame_delay;
     int is_attacking, attack_cooldown;
-    struct enemy *next;
-    // Slimes
-    slime_ball *slimes;
     int slime_shot_this_attack;
+    struct enemy *next;
 } enemy;
 
 enemy* enemy_create(float x, float y, float speed, const char *walk_sprite_path);
@@ -40,7 +37,6 @@ void enemy_draw_hitbox(enemy *e, int camera_x, bool show);
 void enemy_update_all(enemy *head);
 void enemy_draw_all(enemy *head, int camera_x, bool show_hitbox);
 void enemy_destroy_all(enemy *head);
-void enemy_update_slimes(enemy *head, int world_width);
 void enemy_check_bullet_collisions(enemy *head, pistol *gun);
 void enemy_remove_dead(enemy **head);
 

@@ -6,6 +6,9 @@
 #include "Pistol.h"
 #include "Player1.h"
 
+// Lista encadeada de slime balls
+extern slime_ball *slime_balls;
+
 enemy* enemy_create(float x, float y, float speed, const char *walk_sprite_path) {
     enemy *e = (enemy*)malloc(sizeof(enemy));
     if (!e) return NULL;
@@ -46,13 +49,12 @@ enemy* enemy_create(float x, float y, float speed, const char *walk_sprite_path)
     e->attack_frame_delay = 5;
     e->is_attacking = 0;
     e->attack_cooldown = 0;
+    e->slime_shot_this_attack = 0;
 
     e->health = 3; // 3 tiros para morrer
     e->state = ENEMY_ALIVE;
     e->next = NULL;
-    e->slimes = NULL;
     e->facing = -1; // Começa olhando para esquerda
-    e->slime_shot_this_attack = 0;
     return e;
 }
 
@@ -88,15 +90,17 @@ void enemy_update(enemy *e) {
 
                 if (e->facing == -1) {
                     slime_offset_x = e->x + 70;
-                    slime_vx = -7;
+                    slime_vx = -3; // velocidade da slime ball (esquerda)
                 } else {
                     slime_offset_x = e->x + e->attack_frame_width * 2.0 - 110;
-                    slime_vx = 7;
+                    slime_vx = 3; // velocidade da slime ball (direita)
                 }
                 float slime_vy = 0;
-                slime_ball *b = slime_ball_create(slime_offset_x, slime_y, slime_vx, slime_vy);
-                b->next = e->slimes;
-                e->slimes = b;
+                slime_ball *b = slime_ball_create(slime_offset_x, slime_y, slime_vx, slime_vy, SLIME_GREEN);
+                b->next = slime_balls;
+                slime_balls = b;
+
+                // Adiciona à lista global
                 e->slime_shot_this_attack = 1; // Marca que já lançou a slime neste ataque
             }
             if (e->attack_frame >= e->attack_max_frames) {
@@ -169,7 +173,6 @@ void enemy_draw(enemy *e, int camera_x) {
                 flip
             );
         }
-        slime_ball_draw(e->slimes, camera_x);
     } else if (e->state == ENEMY_DEAD) {
         int frame_x = e->dead_frame * e->dead_frame_width;
         al_draw_scaled_bitmap(
@@ -188,11 +191,6 @@ void enemy_destroy(enemy *e) {
     if (e->walk_sprite) al_destroy_bitmap(e->walk_sprite);
     if (e->dead_sprite) al_destroy_bitmap(e->dead_sprite);
     if (e->attack_sprite) al_destroy_bitmap(e->attack_sprite);
-    while (e->slimes) {
-        slime_ball *next = e->slimes->next;
-        slime_ball_destroy(e->slimes);
-        e->slimes = next;
-    }
     free(e);
 }
 
@@ -234,12 +232,6 @@ void enemy_destroy_all(enemy *head) {
         enemy *next = head->next;
         enemy_destroy(head);
         head = next;
-    }
-}
-
-void enemy_update_slimes(enemy *head, int world_width) {
-    for (enemy *e = head; e; e = e->next) {
-        slime_ball_update(&e->slimes, world_width);
     }
 }
 
