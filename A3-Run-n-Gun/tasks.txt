@@ -1,19 +1,16 @@
-- Centralizar câmera (apenas para ir)
-- Fazer sprite da slime ball
-- Fazer sprites dos corações do player (vida)
-- Implementar reload (cooldown da arma)
-- Implementar hud da arma
-
-- Implementar boss
-- Implementar som
+- Implementar para quando zumbi morrer, seu tiro não sumir (!)
+- Implementar boss (!)
+- Implementar som (!)
+- Arrumar agachamento
 
 [EXTRAS]
-- Adicionar outros gangsters para o usuário selecionar
 - Pause
-- Estamina e recarregar arma
+- Implementar ataque corpo a corpo
+- Estamina -> recarregar arma (cooldown)
+- Reload da arma -> hud da arma
+- Adicionar outros gangsters para o usuário selecionar
 
 [REFINO]
-- Arrumar agachamento (agachar mais ?)
-- Colocar sprites de coração para vida do personagem
-- Arrumar animação de atirar agachado (colocar +1 frame no sprite)
+- Arrumar animação de atirar agachado (colocar +1 frame no sprite de fogo da arma)
+- Colocar as vidas com o gangster fumando animado
 - Cor diferente quando agacha (squat)

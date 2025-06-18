@@ -21,6 +21,7 @@ typedef struct {
     ALLEGRO_BITMAP *squat_shot;
     ALLEGRO_BITMAP *hurt;
     ALLEGRO_BITMAP *dead;
+    ALLEGRO_BITMAP *hud_health;
 
     // Animação
     int run_frame, run_max_frames, run_frame_width, run_frame_height;
@@ -45,7 +46,7 @@ typedef struct {
 
 player1* create_player1(unsigned short initial_y, unsigned short max_x, unsigned short max_y);
 int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, const char *run,
-                             const char *squat, const char *jump, const char *shot, const char *squat_shot, const char *hurt, const char *dead);
+                             const char *squat, const char *jump, const char *shot, const char *squat_shot, const char *hurt, const char *dead, const char *hud_health);
 void player1_get_hitbox(player1 *p, int player_screen_x, int player_screen_y, int *hx, int *hy, int *hw, int *hh);
 void player1_update(player1 *p, int *player_world_x, int world_width, int player_screen_y);
 void player1_draw(player1 *p, int player_screen_x, int player_screen_y);

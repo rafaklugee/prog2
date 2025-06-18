@@ -22,7 +22,8 @@ void reset_game_state(player1 **p, enemy **enemies, int *player_world_x, int *cu
         "sprites/gangsters/Gangsters_1/Shot.png",
         "sprites/gangsters/Gangsters_1/Squat_Shot.png",
         "sprites/gangsters/Gangsters_1/Hurt.png",
-        "sprites/gangsters/Gangsters_1/Dead.png"
+        "sprites/gangsters/Gangsters_1/Dead.png",
+        "sprites/gangsters/Gangsters_1/Gangster_Health.png"
     );
     enemy_destroy_all(*enemies);
     *enemies = enemy_create(900, Y_SCREEN - 325, 1.0, "sprites/zombies/Zombie_3/Walk.png");
@@ -35,7 +36,22 @@ void reset_game_state(player1 **p, enemy **enemies, int *player_world_x, int *cu
 }
 
 void draw_hud(player1 *p, ALLEGRO_FONT *font) {
-    al_draw_textf(font, al_map_rgb(255,0,0), 20, 20, 0, "VIDA: %d", p->health);
+    // Desenhe até 3 chapéus, espaçados
+    int health_size = 70;
+    int spacing = 2;
+    int start_x = 10;
+    int y = 0;
+    for (int i = 0; i < p->health && i < 3; i++) {
+        al_draw_scaled_bitmap(
+            p->hud_health,
+            0, 0,
+            al_get_bitmap_width(p->hud_health), al_get_bitmap_height(p->hud_health),
+            start_x + i * (health_size + spacing), y,
+            health_size, health_size,
+            0
+        );
+    }
+    // al_draw_textf(font, al_map_rgb(255,0,0), 20, 20, 0, "VIDA: %d", p->health);
 }
 
 void enemy_check_slime_collisions_with_player(

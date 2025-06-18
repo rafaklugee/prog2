@@ -16,7 +16,7 @@
 #define X_SCREEN 800
 #define Y_SCREEN 600
 #define CAMERA_LEFT_MARGIN (X_SCREEN / 4)
-#define CAMERA_RIGHT_MARGIN (X_SCREEN / 2)
+#define CAMERA_RIGHT_MARGIN (X_SCREEN / 3)
 
 // Defina o tamanho total do cenário (10x o fundo)
 #define BG_REPEAT 10
@@ -42,6 +42,7 @@ int main(){
     al_init_image_addon(); // Habilita o addon de imagens, que permite carregar imagens em formatos como PNG, JPEG, etc.
     al_init_font_addon(); // Habilita o addon de fontes, que permite carregar e usar fontes TTF e bitmap
 	al_install_keyboard(); //Habilita a entrada via teclado (eventos de teclado), no programa
+    slime_ball_load_sprite(); // Carrega o sprite da slime ball, que é usado pelos inimigos
 
     ALLEGRO_TIMER* timer = al_create_timer(1.0 / 30.0);	// Cria o relógio do jogo; isso indica quantas atualizações serão realizadas por segundo (30, neste caso)
 	ALLEGRO_EVENT_QUEUE* queue = al_create_event_queue(); // Cria a fila de eventos; todos os eventos (programação orientada a eventos) 
@@ -95,7 +96,8 @@ int main(){
                 "sprites/gangsters/Gangsters_1/Shot.png",
                 "sprites/gangsters/Gangsters_1/Squat_Shot.png",
                 "sprites/gangsters/Gangsters_1/Hurt.png",
-                "sprites/gangsters/Gangsters_1/Dead.png"
+                "sprites/gangsters/Gangsters_1/Dead.png",
+                "sprites/gangsters/Gangsters_1/Gangster_Health.png"
 
             )) {
             fprintf(stderr, "Falha ao carregar sprites do player\n");
@@ -233,6 +235,7 @@ int main(){
     background_destroy(bg);
     player1_destroy(p);
     al_destroy_font(font);
+    slime_ball_unload_sprite();
     enemy_destroy_all(enemies);
     al_destroy_event_queue(queue);
     al_destroy_timer(timer);

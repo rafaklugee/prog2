@@ -6,6 +6,9 @@
         "stdlib.h": "c",
         "allegro_primitives.h": "c",
         "math.h": "c",
-        "slimeball.h": "c"
+        "slimeball.h": "c",
+        "allegro_font.h": "c",
+        "stdio.h": "c",
+        "player1.h": "c"
     }
 }

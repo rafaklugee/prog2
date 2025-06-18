@@ -30,7 +30,7 @@ player1* create_player1(unsigned short initial_y, unsigned short max_x, unsigned
 }
 
 int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, const char *run,
-                             const char *squat, const char *jump, const char *shot, const char *squat_shot, const char *hurt, const char *dead) {
+                             const char *squat, const char *jump, const char *shot, const char *squat_shot, const char *hurt, const char *dead, const char *hud_health) {
     p->idle = al_load_bitmap(idle);
     p->idle_left = al_load_bitmap(idle_left);
     p->run = al_load_bitmap(run);
@@ -40,8 +40,9 @@ int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, co
     p->squat_shot = al_load_bitmap(squat_shot);
     p->hurt = al_load_bitmap(hurt);
     p->dead = al_load_bitmap(dead);
+    p->hud_health = al_load_bitmap(hud_health);
 
-    if (!p->idle || !p->idle_left || !p->run || !p->squat || !p->jump || !p->shot || !p->hurt)
+    if (!p->idle || !p->idle_left || !p->run || !p->squat || !p->jump || !p->shot || !p->hurt || !p->hud_health)
         return 0;
 
     // Frames e dimensões
