@@ -2,43 +2,51 @@
 #define __BOSS_H__
 
 #include <allegro5/allegro5.h>
+#include <allegro5/allegro_font.h>
+#include "Player1.h"
+#include "Pistol.h"
+#include "Background.h"
+#include "Enemy.h"
+#include "Utils.h"
 
 typedef struct {
-    int x, y;
-    float scale;
+    // Sprites
     ALLEGRO_BITMAP *idle;
     ALLEGRO_BITMAP *hurt;
-    ALLEGRO_BITMAP *attack1; // NOVO
-    ALLEGRO_BITMAP *attack2; // NOVO
-    ALLEGRO_BITMAP *death; // NOVO
+    ALLEGRO_BITMAP *attack1; 
+    ALLEGRO_BITMAP *attack2; 
+    ALLEGRO_BITMAP *death;
+
+    // Variáveis de controle geral
+    int x, y;
+    float scale;
     int frame, max_frames, frame_width, frame_height, frame_delay, frame_counter;
     int is_active;
     int health;
-    int is_hurt;
-    int hurt_frame, hurt_max_frames, hurt_frame_width, hurt_frame_height, hurt_frame_delay, hurt_frame_counter;
-    int hurt_timer;
+    int zombie_spawn_cooldown;
     int hitbox_offset_x, hitbox_offset_y, hitbox_w, hitbox_h;
+
+    // Dano (hurt)
+    int hurt_frame, hurt_max_frames, hurt_frame_width, hurt_frame_height, 
+        hurt_frame_delay, hurt_frame_counter, is_hurt, hurt_timer;
+    
     // Ataque
-    int is_attacking;      // NOVO
-    int attack_type;       // 1 ou 2
-    int attack_frame;      // frame atual do ataque
-    int attack_max_frames; // 6
-    int attack_frame_delay;
-    int attack_frame_counter;
-    int attack_cooldown;   // frames até próximo ataque
-    int zombie_spawn_cooldown; // cooldown para spawnar zumbi
+    int is_attacking, attack_type, attack_frame, attack_max_frames, 
+        attack_frame_delay, attack_frame_counter, attack_cooldown; 
+
     // Morte
-    int is_dead;           // NOVO
-    int death_frame;       // NOVO
-    int death_max_frames;  // NOVO
-    int death_frame_delay; // NOVO
-    int death_frame_counter; // NOVO
-    int death_timer;       // NOVO (delay após animação)
+    int is_dead, death_frame, death_max_frames, death_frame_delay, death_frame_counter, death_timer;              
 } boss;
 
-boss* boss_create(int x, int y, float scale, const char *idle_sprite);
+boss* boss_create(int x, int y, float scale);
 void boss_draw(boss *b, int camera_x, bool show_hitboxes);
 void boss_destroy(boss *b);
 void boss_update(boss *b);
+void boss_check_bullet_collision(boss *b, pistol *g);
+int boss_handle_death_end(
+    boss *b, ALLEGRO_DISPLAY *disp, ALLEGRO_FONT *font, ALLEGRO_FONT *big_font,
+    ALLEGRO_EVENT_QUEUE *queue, Background *bg,
+    player1 **p, enemy **enemies, int *player_world_x, int *current_camera_x, int player_screen_y, int bg_repeat
+);
 
 #endif

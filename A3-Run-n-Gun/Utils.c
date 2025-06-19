@@ -15,10 +15,12 @@
 extern boss *final_boss;
 extern slime_ball *slime_balls;
 
+// Função para reiniciar o jogo (jogar novamente)
 void reset_game_state(
     player1 **p, enemy **enemies, int *player_world_x, int *current_camera_x, int player_screen_y,
     Background *bg, int bg_repeat
 ) {
+    // Destrói tudo criado e cria tudo novamente
     player1_destroy(*p);
     *p = create_player1(player_screen_y, X_SCREEN, Y_SCREEN);
     player1_load_sprites(
@@ -34,10 +36,12 @@ void reset_game_state(
         "sprites/gangsters/Gangsters_1/Dead.png",
         "sprites/gangsters/Gangsters_1/Gangster_Health.png"
     );
+    // Destrói todos os inimigos
     enemy_destroy_all(*enemies);
-    *enemies = enemy_create(900, Y_SCREEN - 325, 1.0, "sprites/zombies/Zombie_3/Walk.png");
-    (*enemies)->next = enemy_create(1300, Y_SCREEN - 325, 0.75, "sprites/zombies/Zombie_3/Walk.png");
-    (*enemies)->next->next = enemy_create(1800, Y_SCREEN - 325, 0.5, "sprites/zombies/Zombie_3/Walk.png");
+    // Cria novos inimigos
+    *enemies = enemy_create(900, Y_SCREEN - 325, 1.0);
+    (*enemies)->next = enemy_create(1300, Y_SCREEN - 325, 0.75);
+    (*enemies)->next->next = enemy_create(1800, Y_SCREEN - 325, 0.5);
     *player_world_x = 50;
     *current_camera_x = 0;
     (*p)->is_dead = 0;
@@ -46,21 +50,22 @@ void reset_game_state(
     // Limpa todas as slime balls
     slime_ball_destroy_all(&slime_balls);
 
-    // Reseta o boss
+    // Destrói o boss
     if (final_boss) {
         boss_destroy(final_boss);
     }
+    // Cria o boss
     final_boss = boss_create(
-        bg_repeat * bg->scaled_w_near - 300, // posição final do mapa
+        bg_repeat * bg->scaled_w_near - 300,
         Y_SCREEN - 325,
-        3.5f,
-        "sprites/boss/3_Big_Bloated/Big_bloated_idle.png"
+        3.5f
     );
-    final_boss->is_active = 0; // só ativa quando os inimigos acabam
+    final_boss->is_active = 0;
 }
 
+// Desenha a HUD do player
 void draw_hud(player1 *p, ALLEGRO_FONT *font) {
-    // Desenhe até 3 chapéus, espaçados
+    // Desenha 3 chapéus
     int health_size = 70;
     int spacing = 2;
     int start_x = 10;
@@ -78,7 +83,7 @@ void draw_hud(player1 *p, ALLEGRO_FONT *font) {
     // al_draw_textf(font, al_map_rgb(255,0,0), 20, 20, 0, "VIDA: %d", p->health);
 }
 
-// Função auxiliar para colisão círculo-retângulo
+// Função auxiliar para melhor cálculo de colisão (círculo-retângulo)
 static int circle_rect_collision(float cx, float cy, float r, int rx, int ry, int rw, int rh) {
     float closest_x = fmaxf(rx, fminf(cx, rx + rw));
     float closest_y = fmaxf(ry, fminf(cy, ry + rh));
@@ -87,6 +92,7 @@ static int circle_rect_collision(float cx, float cy, float r, int rx, int ry, in
     return (dx * dx + dy * dy) < (r * r);
 }
 
+// Função que verifica colisão da slime ball com o player (inimigos e boss)
 void check_slime_collision_with_player(
     player1 *p,
     int current_camera_x,
@@ -97,6 +103,7 @@ void check_slime_collision_with_player(
     int player_screen_y
 ) {
     slime_ball **curr = &slime_balls;
+    // Enquanto forem lançadas slime balls
     while (*curr) {
         slime_ball *b = *curr;
         int slime_screen_x = b->x - current_camera_x;
@@ -109,6 +116,7 @@ void check_slime_collision_with_player(
 
         float r = b->anim_frame_width * b->scale / 2.0f;
         int slime_hitbox_y = slime_screen_y - 20;
+        // Tamanhos e hitboxes diferentes para cada tipo de slime
         if (b->type == SLIME_RED) {
             slime_hitbox_y += 80;
             r *= 0.75f;
@@ -117,6 +125,7 @@ void check_slime_collision_with_player(
             slime_hitbox_y += 10;
             r *= 0.6f;
         }
+        // Se atinigiu o player, diminui sua vida e some
         if (!b->has_hit_player &&
             circle_rect_collision(
                 slime_screen_x, slime_hitbox_y, r,

@@ -1,17 +1,18 @@
-#ifndef __PISTOL__ 																												//Guardas de inclusão
-#define __PISTOL__																												//Guardas de inclusão
+#ifndef __PISTOL__ 																												
+#define __PISTOL__																												
 
 #include "Bullet.h"
 
-#define PISTOL_COOLDOWN 7																										//Tamanho, em frames, do tempo entre um tiro e outro
+// Tempo entre um tiro e outro
+#define PISTOL_COOLDOWN 7
 
-typedef struct {																												//Definição da estrutura de uma pistola
-	unsigned char timer;																										//Relógio de intervalo entre tiros
-	bullet *shots;																												//Lista de balas ativas no campo disparadas pelas arma	
-} pistol;																														//Definição do nome da estrutura
+typedef struct {																												
+	unsigned char timer; //Relógio de intervalo entre tiros
+	bullet *shots; //Lista de balas ativas no campo disparadas pelas arma	
+} pistol;																														
 
-pistol* pistol_create();																										//Protótipo da função de criação de uma pistola
-bullet* pistol_shot(unsigned short x, unsigned short y, unsigned char trajectory, pistol *gun);									//Protótipo da função de disparo de uma pistola
-void pistol_destroy(pistol *element);																							//Protótipo da função de destruição de uma pistola
+pistol* pistol_create();																										
+bullet* pistol_shot(unsigned short x, unsigned short y, unsigned char trajectory, pistol *gun);									
+void pistol_destroy(pistol *element);																							
 
-#endif																															//Guardas de inclusão
+#endif																															

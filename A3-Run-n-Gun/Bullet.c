@@ -1,29 +1,29 @@
 #include <stdlib.h>
 #include "Bullet.h"
 
-bullet* bullet_create(unsigned short x, unsigned short y, unsigned char trajectory, bullet *next){			//Implementação da função "bullet_create"
+bullet* bullet_create(unsigned short x, unsigned short y, unsigned char trajectory, bullet *next){		
 
-	if ((trajectory < 0) || (trajectory > 2)) return NULL;													//Verifica se a trajetória informada para o projétil é válida
+	if ((trajectory < 0) || (trajectory > 2)) return NULL;													
 
-	bullet *new_bullet = (bullet*) malloc(sizeof(bullet));													//Aloca memória na heap para uma instância de projétil
-	if (!new_bullet) return NULL;																			//Verifica o sucesso da alocação de memória; retorna NULL em caso de falha
-	new_bullet->x = x;																						//Armazena a posição X informada
-	new_bullet->y = y;																						//Armazena a posição Y informada
-	new_bullet->trajectory = trajectory;																	//Armazena a trajetória informada
+	bullet *new_bullet = (bullet*) malloc(sizeof(bullet));													
+	if (!new_bullet) return NULL;																			
+	new_bullet->x = x;																						
+	new_bullet->y = y;																						
+	new_bullet->trajectory = trajectory;																	
 	new_bullet->distance_traveled = 0;
-	new_bullet->next = (struct bullet*) next;																//Armazena o próximo projétil informado
-	return new_bullet;																						//Retorna a instância criada de projétil
+	new_bullet->next = (struct bullet*) next;																
+	return new_bullet;																						
 }
 
-void bullet_move(bullet *elements){																			//Implementação da função "bullet_move"
+void bullet_move(bullet *elements){																			
 
-	for (bullet *index = elements; index != NULL; index = (bullet*) index->next){							//Para cada projétil presente na lista de projéteis informada
-		if (index->trajectory == BULLET_TRAJ_LEFT) index->x = index->x - BULLET_MOVE;						//Se a trajetória for para a esquerda, movimenta um passo à esquerda
-		else if (index->trajectory == BULLET_TRAJ_RIGHT) index->x = index->x + BULLET_MOVE;					//Se a trajetória for para a direita, movimenta um passo à direita
-		else if (index->trajectory == BULLET_TRAJ_UP) index->y = index->y - BULLET_MOVE;
+	for (bullet *index = elements; index != NULL; index = (bullet*) index->next){	
+		if (index->trajectory == BULLET_TRAJ_LEFT) index->x = index->x - BULLET_MOVE; // Se a trajetória for para a esquerda, movimenta um passo à esquerda
+		else if (index->trajectory == BULLET_TRAJ_RIGHT) index->x = index->x + BULLET_MOVE;	// Se a trajetória for para a direita, movimenta um passo à direita
+		else if (index->trajectory == BULLET_TRAJ_UP) index->y = index->y - BULLET_MOVE; // Se a trajetória for para a direita, movimenta um passo à cima
 	}
 }
 
-void bullet_destroy(bullet *element){																		//Implementação da função "bullet_destroy"
-	free(element);																							//Libera a memória da instância de projétil
+void bullet_destroy(bullet *element){
+	free(element);
 }

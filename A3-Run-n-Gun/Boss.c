@@ -1,28 +1,34 @@
 #include <stdlib.h>
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
-#include <allegro5/allegro_primitives.h> // para al_draw_rectangle
+#include <allegro5/allegro_primitives.h>
+#include <time.h>
 #include "Boss.h"
 #include "SlimeBall.h"
 #include "Enemy.h"
-#include <time.h> // para srand/rand
 #include "Player1.h"
+#include "Menu.h"
+#include "Background.h"
 
 extern slime_ball *slime_balls;
 extern enemy *enemies;
 extern int player_world_x;
 
-boss* boss_create(int x, int y, float scale, const char *idle_sprite) {
+// Inicialização do boss com os atributos iniciais
+boss* boss_create(int x, int y, float scale) {
     boss *b = malloc(sizeof(boss));
-    if (!b) return NULL;
+    if (!b) 
+        return NULL;
     b->x = x;
     b->y = y;
     b->scale = scale;
-    b->idle = al_load_bitmap(idle_sprite);
+    // Sprites
+    b->idle = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_idle.png");
     b->hurt = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_hurt.png");
     b->attack1 = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_attack2.png");
     b->attack2 = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_attack1.png");
     b->death = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_death.png");
+    // Frames e dimensões
     b->max_frames = 4;
     b->frame = 0;
     b->frame_width = al_get_bitmap_width(b->idle) / b->max_frames;
@@ -32,6 +38,7 @@ boss* boss_create(int x, int y, float scale, const char *idle_sprite) {
     b->is_active = 0;
     b->health = 10;
     b->is_hurt = 0;
+    // Dano
     b->hurt_max_frames = 2;
     b->hurt_frame = 0;
     b->hurt_frame_width = al_get_bitmap_width(b->hurt) / b->hurt_max_frames;
@@ -39,6 +46,7 @@ boss* boss_create(int x, int y, float scale, const char *idle_sprite) {
     b->hurt_frame_delay = 7;
     b->hurt_frame_counter = 0;
     b->hurt_timer = 0;
+    // Hitbox
     b->hitbox_offset_x = 80;
     b->hitbox_offset_y = 80;
     b->hitbox_w = b->frame_width * b->scale - 100;
@@ -51,22 +59,26 @@ boss* boss_create(int x, int y, float scale, const char *idle_sprite) {
     b->attack_frame_delay = 7;
     b->attack_frame_counter = 0;
     srand(time(NULL));
-    b->attack_cooldown = 90 + rand() % 61; // 3-5 segundos (30fps)
-    b->zombie_spawn_cooldown = 180 + rand() % 120; // 6~10 segundos (30fps)
+    b->attack_cooldown = 90 + rand() % 61; // 3-5 segundos
+    b->zombie_spawn_cooldown = 180 + rand() % 120; // 6-10 segundos
+    // Morte
     b->is_dead = 0;
     b->death_frame = 0;
     b->death_max_frames = 4;
     b->death_frame_delay = 10;
     b->death_frame_counter = 0;
-    b->death_timer = 1; // 2 segundos após animação (ajuste se quiser)
+    b->death_timer = 1;
     return b;
 }
 
+// 
 void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
-    if (!b || !b->is_active) return;
+    if (!b || !b->is_active) 
+        return;
     int draw_x = b->x - camera_x;
     int draw_y = b->y;
 
+    // Desenha o sprite de ataque
     if (b->is_attacking) {
         ALLEGRO_BITMAP *atk = (b->attack_type == 1) ? b->attack1 : b->attack2;
         int frame_w = al_get_bitmap_width(atk) / b->attack_max_frames;
@@ -79,6 +91,7 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
             frame_w * b->scale, frame_h * b->scale,
             0
         );
+    // Desenha o sprite de dano (hurt)
     } else if (b->is_hurt && b->hurt_timer > 0) {
         int frame_x = b->hurt_frame * b->hurt_frame_width;
         al_draw_scaled_bitmap(
@@ -98,6 +111,7 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
             b->is_hurt = 0;
             b->hurt_frame = 0;
         }
+    // Desenha o sprite de morte
     } else if (b->is_dead) {
         int frame_w = al_get_bitmap_width(b->death) / b->death_max_frames;
         int frame_h = al_get_bitmap_height(b->death);
@@ -110,6 +124,7 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
             0
         );
         return;
+    // Desenha o sprite parado (idle)
     } else {
         int frame_x = b->frame * b->frame_width;
         al_draw_scaled_bitmap(
@@ -126,7 +141,7 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
         }
     }
 
-    // Desenhar a hitbox se show_hitboxes for true
+    // Desenha a hitbox do boss
     if (show_hitboxes) {
         al_draw_rectangle(
             draw_x + b->hitbox_offset_x, draw_y + b->hitbox_offset_y,
@@ -137,20 +152,24 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
     }
 }
 
+// Destrói o boss (único)
 void boss_destroy(boss *b) {
     if (b) {
         if (b->idle) al_destroy_bitmap(b->idle);
         if (b->hurt) al_destroy_bitmap(b->hurt);
-        if (b->attack1) al_destroy_bitmap(b->attack1); // NOVO
-        if (b->attack2) al_destroy_bitmap(b->attack2); // NOVO
+        if (b->attack1) al_destroy_bitmap(b->attack1);
+        if (b->attack2) al_destroy_bitmap(b->attack2);
         if (b->death) al_destroy_bitmap(b->death);
         free(b);
     }
 }
 
+// Lógicas de update do boss
 void boss_update(boss *b) {
-    if (!b || !b->is_active) return;
+    if (!b || !b->is_active) 
+        return;
 
+    // Se o boss morreu, executa a animação de morte
     if (b->is_dead) {
         // Avança a animação de morte
         if (b->death_frame < b->death_max_frames - 1) {
@@ -166,26 +185,26 @@ void boss_update(boss *b) {
         return;
     }
 
+    // Se o boss está atacando, atualiza os frames de ataque
     if (b->is_attacking) {
         b->attack_frame_counter++;
         if (b->attack_frame_counter >= b->attack_frame_delay) {
             b->attack_frame = (b->attack_frame + 1);
             b->attack_frame_counter = 0;
             if (b->attack_frame >= b->attack_max_frames) {
-                // --- ATAQUE: JOGAR SLIMES ---
+                // Ataque slime ball azul: 3 slimes em leque (cima, meio, baixo)
                 if (b->attack_type == 1) {
-                    // Ataque azul: 3 slimes em leque (cima, meio, baixo)
                     float base_x = b->x + b->frame_width * b->scale / 2;
                     float base_y = b->y + b->frame_height * b->scale / 2;
                     for (int i = -1; i <= 1; i++) {
-                        float vx = -7 + i * 2; // espalhamento horizontal
+                        float vx = -7 + i * 2;
                         float vy;
                         if (i == 0)
-                            vy = 0;    // do meio: horizontal
+                            vy = 0;    // Do meio: horizontal
                         else if (i < 0)
-                            vy = -4;   // de cima: para cima
+                            vy = -4;   // De cima: para cima
                         else
-                            vy = 4;    // de baixo: para baixo
+                            vy = 4;    // De baixo: para baixo
                         slime_ball *sb = slime_ball_create(
                             base_x, base_y,
                             vx, vy,
@@ -194,54 +213,123 @@ void boss_update(boss *b) {
                         sb->next = slime_balls;
                         slime_balls = sb;
                     }
-                } else if (b->attack_type == 2) {
-                    // Ataque vermelho: 1 slime grande e rápida
+                // Ataque slime ball vermelha: 1 slime grande e rápida
+                } else if (b->attack_type == 2) {        
                     float base_x = b->x + b->frame_width * b->scale / 2;
                     float base_y = b->y + b->frame_height * b->scale / 2;
                     slime_ball *sb = slime_ball_create(
                         base_x, base_y,
-                        -10, 1, // Tajetória da slime vermelha
+                        -10, 1, // Trajetória da slime vermelha
                         SLIME_RED
                     );
                     sb->next = slime_balls;
                     slime_balls = sb;
                 }
-                // --- FIM DO ATAQUE ---
 
+                // No fim do ataque, reseta os frames de ataque
                 b->is_attacking = 0;
                 b->attack_frame = 0;
                 b->attack_cooldown = 90 + rand() % 61;
             }
         }
+    // Se o cooldown de ataque está ativo, decrementa
     } else {
         if (b->attack_cooldown > 0) {
             b->attack_cooldown--;
+        // Ataca, mas só ataca se o player estiver perto (600 pixels)
         } else {
-            // Só ataca se o player estiver perto (exemplo: 600 pixels)
             if (abs((int)(b->x - player_world_x)) < 600) {
                 b->attack_type = (rand() % 2) + 1;
                 b->is_attacking = 1;
                 b->attack_frame = 0;
                 b->attack_frame_counter = 0;
             }
-            // Se o player não está perto, espera mais um pouco
+            // Se o player não está perto, espera mais um pouco antes de atacar
             else {
-                b->attack_cooldown = 15; // espera meio segundo antes de checar de novo
+                b->attack_cooldown = 15;
             }
         }
     }
 
-    // SPAWN DE ZUMBI
+    // Invocação de zumbis pelo boss
+    // Se estão em cooldown, decrementa
     if (b->zombie_spawn_cooldown > 0) {
         b->zombie_spawn_cooldown--;
+    // Cria um novo zumbi perto do boss em um intervalo de 6-10 segundos
     } else {
-        // Cria um novo zumbi perto do boss
-        float spawn_x = b->x - 150;  // à esquerda do boss
+        float spawn_x = b->x - 150;
         float spawn_y = b->y;
-        enemy *new_zombie = enemy_create(spawn_x, spawn_y, 1.0, "sprites/zombies/Zombie_3/Walk.png");
+        enemy *new_zombie = enemy_create(spawn_x, spawn_y, 1.0);
         new_zombie->next = enemies;
         enemies = new_zombie;
-        // Reinicia o cooldown
-        b->zombie_spawn_cooldown = 180 + rand() % 120; // 6~10 segundos
+        b->zombie_spawn_cooldown = 180 + rand() % 120;
     }
+}
+
+// Checa colisão de balas no boss
+void boss_check_bullet_collision(boss *b, pistol *g) {
+    if (!b || !b->is_active || b->health <= 0 || !g) 
+        return;
+    bullet **curr = &(g->shots);
+    int bx = b->x + b->hitbox_offset_x;
+    int by = b->y + b->hitbox_offset_y;
+    int bw = b->hitbox_w;
+    int bh = b->hitbox_h;
+    while (*curr) {
+        bullet *bul = *curr;
+        // Se a bala acertou o boss, diminui sua vida
+        if (bul->x > bx && bul->x < bx + bw &&
+            bul->y > by && bul->y < by + bh) {
+            if (!b->is_hurt) {
+                b->health--;
+                b->is_hurt = 1;
+                b->hurt_timer = 10;
+                if (b->health <= 0 && !b->is_dead) {
+                    b->is_dead = 1;
+                    b->death_frame = 0;
+                    b->death_frame_counter = 0;
+                    b->death_timer = 600;
+                }
+            }
+            *curr = (bullet*)bul->next;
+            bullet_destroy(bul);
+            break;
+        } else {
+            curr = (bullet**)&((*curr)->next);
+        }
+    }
+}
+
+// Evento de morte do boss
+int boss_handle_death_end(
+    boss *b, ALLEGRO_DISPLAY *disp, ALLEGRO_FONT *font, ALLEGRO_FONT *big_font,
+    ALLEGRO_EVENT_QUEUE *queue, Background *bg,
+    player1 **p, enemy **enemies, int *player_world_x, int *current_camera_x, int player_screen_y, int bg_repeat
+) {
+    static int boss_death_end_timer = 0;
+    // Se o boss está morto e a animação de morte terminou, mostra o menu de vitória
+    if (b && b->is_dead && b->death_frame >= b->death_max_frames - 1 && b->death_timer <= 0) {
+        boss_death_end_timer++;
+        if (boss_death_end_timer > 15) {
+            int menu_choice = show_victory_menu(disp, font, big_font, queue, bg);
+            if (menu_choice == 1) {
+                // Sair do jogo
+                return 1;
+            } else {
+                int menu_result = show_menu(disp, font, queue, bg);
+                if (menu_result == 1) {
+                     // Sair do jogo
+                    return 1;
+                } else {
+                    boss_death_end_timer = 0;
+                    // Jogar novamente
+                    reset_game_state(p, enemies, player_world_x, current_camera_x, player_screen_y, bg, bg_repeat);
+                }
+            }
+        }
+    // Se o boss não está morto, reseta o timer de morte
+    } else if (!(b && b->is_dead)) {
+        boss_death_end_timer = 0;
+    }
+    return 0;
 }

@@ -1,5 +1,6 @@
 #include "Camera.h"
 
+// Calcula a nova posição da câmera com base na posição do jogador
 int camera_calculate(
     int player_world_x,
     int current_camera_x,
@@ -33,5 +34,6 @@ int camera_calculate(
     if (current_camera_x < camera_min_x) current_camera_x = camera_min_x;
     if (current_camera_x > camera_max_x) current_camera_x = camera_max_x;
 
+    // Retorna a posição atual da câmera
     return current_camera_x;
 }

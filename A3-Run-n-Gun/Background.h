@@ -4,7 +4,9 @@
 #include <allegro5/allegro5.h>
 
 typedef struct {
+    // Sprites
     ALLEGRO_BITMAP *sky, *bg_far, *bg_mid, *bg_near;
+    // Variáveis de escala e medidas
     int w_sky, w_far, w_mid, w_near;
     float scale, scaled_w_far, scaled_w_mid, scaled_w_near;
     int bg_repeat;

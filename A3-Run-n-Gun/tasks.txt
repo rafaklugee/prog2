@@ -1,11 +1,26 @@
 [NECESSÁRIO]
+- Colocar 6 inimigos (atualmente tem 3)
 
 [EXTRAS]
 - Pause
-- Estamina -> recarregar arma (cooldown)
-- Reload da arma -> hud da arma
+- Estamina -> recarregar arma
 - Implementar som
 - Implementar ataque corpo a corpo
+- Extras do moodle
+	- Ataque especial para player 1 (10pt) <-- seria legal...
+	- Inimigo normal extra com sprites e ataques diferentes (15pt) <--
+	- Pause (5pt) <--
+	- Abaixar e atirar abaixado (10pt) <-- IMPLEMENTADO
+	- Segunda fase com background e boss diferente (20pt)
+	- Salvar e carregar o jogo (20pt)
+	- Estamina (10pt) <--
+	- Remapeamento de teclas para jogar no menu (10pt)
+	- Dificuldade: fácil, médio, difícil (5pt) <--
+	- Trilha sonora com ajustador de volume (7pt) <--
+	- Tela de seleção Megaman (10pt)
+	- Item coletável para aumentar vida (5pt) <--
+	- Item de pulo duplo (5pt) <--
+	
 
 [REFINO]
 - Deixar a camera travada ao encontrar o boss
