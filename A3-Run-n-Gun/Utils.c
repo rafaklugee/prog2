@@ -2,14 +2,23 @@
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_primitives.h>
+#include <math.h>
 #include "Enemy.h"
 #include "Player1.h"
 #include "SlimeBall.h"
+#include "Background.h"
+#include "Boss.h"
 
 #define X_SCREEN 800
 #define Y_SCREEN 600
 
-void reset_game_state(player1 **p, enemy **enemies, int *player_world_x, int *current_camera_x, int player_screen_y) {
+extern boss *final_boss;
+extern slime_ball *slime_balls;
+
+void reset_game_state(
+    player1 **p, enemy **enemies, int *player_world_x, int *current_camera_x, int player_screen_y,
+    Background *bg, int bg_repeat
+) {
     player1_destroy(*p);
     *p = create_player1(player_screen_y, X_SCREEN, Y_SCREEN);
     player1_load_sprites(
@@ -33,6 +42,21 @@ void reset_game_state(player1 **p, enemy **enemies, int *player_world_x, int *cu
     *current_camera_x = 0;
     (*p)->is_dead = 0;
     (*p)->health = 3;
+
+    // Limpa todas as slime balls
+    slime_ball_destroy_all(&slime_balls);
+
+    // Reseta o boss
+    if (final_boss) {
+        boss_destroy(final_boss);
+    }
+    final_boss = boss_create(
+        bg_repeat * bg->scaled_w_near - 300, // posição final do mapa
+        Y_SCREEN - 325,
+        3.5f,
+        "sprites/boss/3_Big_Bloated/Big_bloated_idle.png"
+    );
+    final_boss->is_active = 0; // só ativa quando os inimigos acabam
 }
 
 void draw_hud(player1 *p, ALLEGRO_FONT *font) {
@@ -52,6 +76,15 @@ void draw_hud(player1 *p, ALLEGRO_FONT *font) {
         );
     }
     // al_draw_textf(font, al_map_rgb(255,0,0), 20, 20, 0, "VIDA: %d", p->health);
+}
+
+// Função auxiliar para colisão círculo-retângulo
+static int circle_rect_collision(float cx, float cy, float r, int rx, int ry, int rw, int rh) {
+    float closest_x = fmaxf(rx, fminf(cx, rx + rw));
+    float closest_y = fmaxf(ry, fminf(cy, ry + rh));
+    float dx = cx - closest_x;
+    float dy = cy - closest_y;
+    return (dx * dx + dy * dy) < (r * r);
 }
 
 void check_slime_collision_with_player(
@@ -74,9 +107,21 @@ void check_slime_collision_with_player(
             continue;
         }
 
+        float r = b->anim_frame_width * b->scale / 2.0f;
+        int slime_hitbox_y = slime_screen_y - 20;
+        if (b->type == SLIME_RED) {
+            slime_hitbox_y += 80;
+            r *= 0.75f;
+        }
+        if (b->type == SLIME_GREEN) {
+            slime_hitbox_y += 10;
+            r *= 0.6f;
+        }
         if (!b->has_hit_player &&
-            slime_screen_x > player_hitbox_x && slime_screen_x < player_hitbox_x + player_hitbox_w &&
-            slime_screen_y > player_hitbox_y && slime_screen_y < player_hitbox_y + player_hitbox_h) {
+            circle_rect_collision(
+                slime_screen_x, slime_hitbox_y, r,
+                player_hitbox_x, player_hitbox_y, player_hitbox_w, player_hitbox_h
+            )) {
             p->health--;
             p->is_hurt = 1;
             p->hurt_frame = 0;

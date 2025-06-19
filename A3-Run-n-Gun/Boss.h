@@ -10,6 +10,7 @@ typedef struct {
     ALLEGRO_BITMAP *hurt;
     ALLEGRO_BITMAP *attack1; // NOVO
     ALLEGRO_BITMAP *attack2; // NOVO
+    ALLEGRO_BITMAP *death; // NOVO
     int frame, max_frames, frame_width, frame_height, frame_delay, frame_counter;
     int is_active;
     int health;
@@ -26,6 +27,13 @@ typedef struct {
     int attack_frame_counter;
     int attack_cooldown;   // frames até próximo ataque
     int zombie_spawn_cooldown; // cooldown para spawnar zumbi
+    // Morte
+    int is_dead;           // NOVO
+    int death_frame;       // NOVO
+    int death_max_frames;  // NOVO
+    int death_frame_delay; // NOVO
+    int death_frame_counter; // NOVO
+    int death_timer;       // NOVO (delay após animação)
 } boss;
 
 boss* boss_create(int x, int y, float scale, const char *idle_sprite);

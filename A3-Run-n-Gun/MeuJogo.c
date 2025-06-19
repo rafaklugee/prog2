@@ -30,7 +30,7 @@ int player_world_x = 50;
 enemy *enemies = NULL;
 
 // Mostrar hitboxes
-bool show_hitboxes = false; 
+bool show_hitboxes = true; 
 
 // Lista encadeada de slime balls
 slime_ball *slime_balls = NULL;
@@ -204,6 +204,12 @@ int main(){
             player1_update(p, &player_world_x, world_width, player_screen_y);
             player1_update_bullets(p, world_width);
 
+            // Limite para não sair do início do mapa
+            if (player_world_x < 0) player_world_x = 0;
+
+            // Limite para não sair do final do mapa
+            if (player_world_x > world_width - 150) player_world_x = world_width - 150;
+
             // Atualizando todos os inimigos
             enemy_update_all(enemies);
 
@@ -247,6 +253,12 @@ int main(){
                             final_boss->health--;
                             final_boss->is_hurt = 1;
                             final_boss->hurt_timer = 10;
+                            if (final_boss->health <= 0 && !final_boss->is_dead) {
+                                final_boss->is_dead = 1;
+                                final_boss->death_frame = 0;
+                                final_boss->death_frame_counter = 0;
+                                final_boss->death_timer = 600; // 2 segundos após animação
+                            }
                         }
                         *curr = (bullet*)b->next;
                         bullet_destroy(b);
@@ -261,8 +273,31 @@ int main(){
             slime_ball_update(&slime_balls, world_width);
 
             // Atualiza o boss se ele estiver ativo
-            if (final_boss && final_boss->is_active) {
+            if (final_boss && (final_boss->is_active || final_boss->is_dead)) {
                 boss_update(final_boss);
+            }
+
+            // Após boss_update(final_boss);
+            static int boss_death_end_timer = 0;
+            if (final_boss && final_boss->is_dead && final_boss->death_frame >= final_boss->death_max_frames - 1 && final_boss->death_timer <= 0) {
+                boss_death_end_timer++;
+                if (boss_death_end_timer > 15) {
+                    int menu_choice = show_victory_menu(disp, font, big_font, queue, bg);
+                    if (menu_choice == 1) {
+                        running = false; // Sair do jogo
+                    } else {
+                        // Volta ao menu principal
+                        int menu_result = show_menu(disp, font, queue, bg);
+                        if (menu_result == 1) {
+                            running = false;
+                        } else {
+                            boss_death_end_timer = 0;
+                            reset_game_state(&p, &enemies, &player_world_x, &current_camera_x, player_screen_y, bg, BG_REPEAT);
+                        }
+                    }
+                }
+            } else if (!(final_boss && final_boss->is_dead)) {
+                boss_death_end_timer = 0;
             }
 
             redraw = true;
@@ -287,7 +322,7 @@ int main(){
             if (menu_choice == 1) {
                 running = false; // Sair do jogo
             } else {
-                reset_game_state(&p, &enemies, &player_world_x, &current_camera_x, player_screen_y); // Jogar novamente
+                reset_game_state(&p, &enemies, &player_world_x, &current_camera_x, player_screen_y, bg, BG_REPEAT); // Jogar novamente
             }
         }
     }

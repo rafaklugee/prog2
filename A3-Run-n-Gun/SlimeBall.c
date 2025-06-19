@@ -38,6 +38,11 @@ slime_ball* slime_ball_create(float x, float y, float vx, float vy, slime_type t
     b->anim_frame_counter = 0;
     b->anim_frame_delay = 3;
     b->type = type;
+    // Defina a escala de acordo com o tipo
+    if (type == SLIME_RED)
+        b->scale = 1.5f; // ou o valor desejado
+    else
+        b->scale = 0.5f;
     ALLEGRO_BITMAP *sprite = slime_sprite_green;
     if (type == SLIME_BLUE) sprite = slime_sprite_blue;
     if (type == SLIME_RED) sprite = slime_sprite_red;
@@ -78,13 +83,10 @@ void slime_ball_update(slime_ball **head, int world_width) {
 void slime_ball_draw(slime_ball *head, int camera_x) {
     for (slime_ball *b = head; b; b = b->next) {
         float cx = b->x - camera_x;
-        float scale = 0.5;
+        float scale = b->scale;
         ALLEGRO_BITMAP *sprite = slime_sprite_green;
         if (b->type == SLIME_BLUE) sprite = slime_sprite_blue;
-        if (b->type == SLIME_RED) {
-            sprite = slime_sprite_red; // Use o sprite vermelho!
-            scale = 1.5; // vermelha maior
-        }
+        if (b->type == SLIME_RED) sprite = slime_sprite_red;
 
         float cy = b->y - 20;
         if (sprite) {
@@ -101,12 +103,33 @@ void slime_ball_draw(slime_ball *head, int camera_x) {
             al_draw_filled_circle(cx, cy, r, al_map_rgb(0, 255, 0));
         }
         if (show_hitboxes) {
-            float r = b->anim_frame_width * scale / 2;
-            al_draw_rectangle(cx - r, cy - r, cx + r, cy + r, al_map_rgb(255, 0, 0), 2);
+            float r = b->anim_frame_width * b->scale / 2.0f;
+            if (b->type == SLIME_RED) {
+                r *= 0.75f; // já diminui a vermelha
+            }
+            if (b->type == SLIME_GREEN) {
+                r *= 0.6f; // diminui ainda mais a verde (ajuste o valor conforme desejar)
+            }
+            float hitbox_cy = cy;
+            if (b->type == SLIME_RED) {
+                hitbox_cy += 80;     // Mesmo deslocamento Y da colisão
+            }
+            if (b->type == SLIME_GREEN) {
+                hitbox_cy += 10; // ajuste para a verde (aumente ou diminua conforme desejar)
+            }
+            al_draw_rectangle(cx - r, hitbox_cy - r, cx + r, hitbox_cy + r, al_map_rgb(255, 0, 0), 2);
         }
     }
 }
 
 void slime_ball_destroy(slime_ball *b) {
     free(b);
+}
+
+void slime_ball_destroy_all(slime_ball **head) {
+    while (*head) {
+        slime_ball *tmp = *head;
+        *head = tmp->next;
+        free(tmp);
+    }
 }

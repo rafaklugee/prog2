@@ -42,6 +42,7 @@ typedef struct {
     float player_scale;
     int last_dir;
     int health;
+    int is_shooting_pressed;
 } player1;
 
 player1* create_player1(unsigned short initial_y, unsigned short max_x, unsigned short max_y);

@@ -22,6 +22,7 @@ boss* boss_create(int x, int y, float scale, const char *idle_sprite) {
     b->hurt = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_hurt.png");
     b->attack1 = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_attack2.png");
     b->attack2 = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_attack1.png");
+    b->death = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_death.png");
     b->max_frames = 4;
     b->frame = 0;
     b->frame_width = al_get_bitmap_width(b->idle) / b->max_frames;
@@ -29,7 +30,7 @@ boss* boss_create(int x, int y, float scale, const char *idle_sprite) {
     b->frame_delay = 10;
     b->frame_counter = 0;
     b->is_active = 0;
-    b->health = 100;
+    b->health = 10;
     b->is_hurt = 0;
     b->hurt_max_frames = 2;
     b->hurt_frame = 0;
@@ -52,6 +53,12 @@ boss* boss_create(int x, int y, float scale, const char *idle_sprite) {
     srand(time(NULL));
     b->attack_cooldown = 90 + rand() % 61; // 3-5 segundos (30fps)
     b->zombie_spawn_cooldown = 180 + rand() % 120; // 6~10 segundos (30fps)
+    b->is_dead = 0;
+    b->death_frame = 0;
+    b->death_max_frames = 4;
+    b->death_frame_delay = 10;
+    b->death_frame_counter = 0;
+    b->death_timer = 1; // 2 segundos após animação (ajuste se quiser)
     return b;
 }
 
@@ -91,6 +98,18 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
             b->is_hurt = 0;
             b->hurt_frame = 0;
         }
+    } else if (b->is_dead) {
+        int frame_w = al_get_bitmap_width(b->death) / b->death_max_frames;
+        int frame_h = al_get_bitmap_height(b->death);
+        int frame_x = b->death_frame * frame_w;
+        al_draw_scaled_bitmap(
+            b->death,
+            frame_x, 0, frame_w, frame_h,
+            draw_x, draw_y,
+            frame_w * b->scale, frame_h * b->scale,
+            0
+        );
+        return;
     } else {
         int frame_x = b->frame * b->frame_width;
         al_draw_scaled_bitmap(
@@ -124,12 +143,28 @@ void boss_destroy(boss *b) {
         if (b->hurt) al_destroy_bitmap(b->hurt);
         if (b->attack1) al_destroy_bitmap(b->attack1); // NOVO
         if (b->attack2) al_destroy_bitmap(b->attack2); // NOVO
+        if (b->death) al_destroy_bitmap(b->death);
         free(b);
     }
 }
 
 void boss_update(boss *b) {
     if (!b || !b->is_active) return;
+
+    if (b->is_dead) {
+        // Avança a animação de morte
+        if (b->death_frame < b->death_max_frames - 1) {
+            b->death_frame_counter++;
+            if (b->death_frame_counter >= b->death_frame_delay) {
+                b->death_frame++;
+                b->death_frame_counter = 0;
+            }
+        } else {
+            // Após a animação, decrementa death_timer a cada frame
+            if (b->death_timer > 0) b->death_timer--;
+        }
+        return;
+    }
 
     if (b->is_attacking) {
         b->attack_frame_counter++;

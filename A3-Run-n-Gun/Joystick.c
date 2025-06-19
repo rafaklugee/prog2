@@ -11,6 +11,7 @@ joystick* joystick_create(){
 	element->fire = 0;
 	element->down = 0;
 	element->jump = 0;
+	element->up = 0;
 	return element;
 }
 

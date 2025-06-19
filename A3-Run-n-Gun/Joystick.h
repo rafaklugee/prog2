@@ -7,6 +7,7 @@ typedef struct {
 	unsigned char jump;
 	unsigned char down;
 	unsigned char fire;
+	unsigned char up;
 } joystick;
 
 joystick* joystick_create();																										

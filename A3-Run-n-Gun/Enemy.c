@@ -62,13 +62,13 @@ void enemy_update(enemy *e) {
     if (!e) return;
 
     extern int player_world_x;
-    // Atualiza direção do inimigo para sempre olhar para o player
-    if (e->x < player_world_x)
-        e->facing = 1; // olha para a direita
-    else
-        e->facing = -1; // olha para a esquerda
-
     if (e->state == ENEMY_ALIVE) {
+        // Atualiza direção do inimigo para sempre olhar para o player
+        if (e->x < player_world_x)
+            e->facing = 1; // olha para a direita
+        else
+            e->facing = -1; // olha para a esquerda
+
         // Ataque se perto do player (exemplo: 400 pixels)
         if (abs((int)(e->x - player_world_x)) < 400 && e->attack_cooldown == 0) {
             e->is_attacking = 1;

@@ -25,6 +25,7 @@ player1* create_player1(unsigned short initial_y, unsigned short max_x, unsigned
     p->squat_anim_done = 0;
     p->is_squatting_out = 0;
     p->is_squat_shooting = 0;
+    p->is_shooting_pressed = 0;
     p->health = 3;
     return p;
 }
@@ -51,7 +52,7 @@ int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, co
     p->run_frame_width = al_get_bitmap_width(p->run) / p->run_max_frames;
     p->run_frame_height = al_get_bitmap_height(p->run);
 
-    p->squat_max_frames = 3;
+    p->squat_max_frames = 4;
     p->squat_frame = 0;
     p->squat_frame_width = al_get_bitmap_width(p->squat) / p->squat_max_frames;
     p->squat_frame_height = al_get_bitmap_height(p->squat);
@@ -170,6 +171,51 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
         }
     }
 
+    // Disparo automático se a tecla está pressionada
+    if (p->is_shooting_pressed && p->gun->timer == 0) {
+        unsigned char traj;
+        int bullet_offset_x, bullet_offset_y;
+
+        if (p->control->up) { // Agora Q faz o tiro para cima
+            traj = BULLET_TRAJ_UP;
+            bullet_offset_x = 175;
+            bullet_offset_y = 180;
+        } else {
+            traj = (p->last_dir == DIR_LEFT) ? BULLET_TRAJ_LEFT : BULLET_TRAJ_RIGHT;
+            bullet_offset_x = (p->last_dir == DIR_LEFT) ? 85 : 175;
+            if (p->is_jumping) {
+                static const int jump_shot_offset_y[10] = {195, 185, 175, 165, 155, 165, 175, 185, 195, 200};
+                int frame = p->jump_frame;
+                if (frame < 0) frame = 0;
+                if (frame >= 10) frame = 9;
+                bullet_offset_y = jump_shot_offset_y[frame];
+            } else if (p->control->down) {
+                bullet_offset_y = 210;
+            } else {
+                bullet_offset_y = 175;
+            }
+        }
+
+        bullet *new_bullet = pistol_shot(
+            *player_world_x + bullet_offset_x,
+            p->player_y + bullet_offset_y,
+            traj,
+            p->gun
+        );
+        if (new_bullet) {
+            new_bullet->next = (struct bullet*)p->gun->shots;
+            p->gun->shots = new_bullet;
+            if (p->is_jumping)
+                p->gun->timer = PISTOL_COOLDOWN * 2; // Cooldown dobrado no ar (ajuste como quiser)
+            else
+                p->gun->timer = PISTOL_COOLDOWN;
+            p->is_shooting = 1;
+            p->shooting_frames = 4;
+            p->shot_frame = 0;
+            p->is_squat_shooting = p->control->down ? 1 : 0;
+        }
+    }
+
     // Animação de dano
     if (p->is_hurt) {
         p->hurt_frame_counter++;
@@ -242,20 +288,24 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
 
     if (p->is_shooting) {
         if (p->is_squat_shooting) {
-            // Desenha a sprite de tiro agachado (um frame só), usando flip se necessário
+            // Agora Squat_Shot.png tem 2 frames!
             ALLEGRO_BITMAP *sprite = p->squat_shot;
+            int squat_shot_max_frames = 2;
+            int squat_shot_frame_width = al_get_bitmap_width(sprite) / squat_shot_max_frames;
+            int squat_shot_frame_height = al_get_bitmap_height(sprite);
+            int shot_frame_x = p->shot_frame % squat_shot_max_frames * squat_shot_frame_width;
             int shot_offset_x = 20;
             int flip = 0;
             if (p->last_dir == DIR_LEFT) {
                 flip = ALLEGRO_FLIP_HORIZONTAL;
-                shot_offset_x = -20; // ajuste para alinhar o sprite agachado à esquerda
+                shot_offset_x = -20;
             }
             al_draw_scaled_bitmap(
                 sprite,
-                0, 0, al_get_bitmap_width(sprite), al_get_bitmap_height(sprite),
+                shot_frame_x, 0, squat_shot_frame_width, squat_shot_frame_height,
                 player_screen_x + shot_offset_x, p->player_y,
-                al_get_bitmap_width(sprite) * p->player_scale,
-                al_get_bitmap_height(sprite) * p->player_scale,
+                squat_shot_frame_width * p->player_scale,
+                squat_shot_frame_height * p->player_scale,
                 flip
             );
         } else {
@@ -475,44 +525,18 @@ void player1_handle_event(player1 *p, ALLEGRO_EVENT *event, int player_world_x) 
                 p->control->down = 1;
         }
         else if (event->keyboard.keycode == ALLEGRO_KEY_SPACE) {
-            int pode_atirar = (!p->control->left && !p->control->right) || p->is_jumping;
-            if (pode_atirar && p->gun->timer == 0) {
-                unsigned char traj = (p->last_dir == DIR_LEFT) ? 0 : 1;
-                int bullet_offset_x = (p->last_dir == DIR_LEFT) ? 85 : 175;
-
-                int bullet_offset_y;
-                if (p->is_jumping) {
-                    static const int jump_shot_offset_y[10] = {195, 185, 175, 165, 155, 165, 175, 185, 195, 200};
-                    int frame = p->jump_frame;
-                    if (frame < 0) frame = 0;
-                    if (frame >= 10) frame = 9;
-                    bullet_offset_y = jump_shot_offset_y[frame];
-                } else if (p->control->down) {
-                    bullet_offset_y = 192;
-                } else {
-                    bullet_offset_y = 175;
-                }
-
-                bullet *new_bullet = pistol_shot(
-                    player_world_x + bullet_offset_x,
-                    p->player_y + bullet_offset_y,
-                    traj,
-                    p->gun
-                );
-                if (new_bullet) {
-                    new_bullet->next = (struct bullet*)p->gun->shots;
-                    p->gun->shots = new_bullet;
-                    p->gun->timer = PISTOL_COOLDOWN;
-                    p->is_shooting = 1;
-                    p->shooting_frames = 4;
-                    p->shot_frame = 0;
-                    p->is_squat_shooting = p->control->down ? 1 : 0;
-                }
-            }
+            // Remova o código de tiro daqui!
+            p->is_shooting_pressed = 1;
+        }
+        else if (event->keyboard.keycode == ALLEGRO_KEY_Q) {
+            p->control->up = 1; // Agora Q ativa o tiro para cima
         }
     }
     else if (event->type == ALLEGRO_EVENT_KEY_UP) {
-        if (event->keyboard.keycode == ALLEGRO_KEY_A)
+        if (event->keyboard.keycode == ALLEGRO_KEY_SPACE) {
+            p->is_shooting_pressed = 0;
+        }
+        else if (event->keyboard.keycode == ALLEGRO_KEY_A)
             p->control->left = 0;
         else if (event->keyboard.keycode == ALLEGRO_KEY_D)
             p->control->right = 0;
@@ -526,6 +550,9 @@ void player1_handle_event(player1 *p, ALLEGRO_EVENT *event, int player_world_x) 
                 p->frame_counter = 0;
             }
         }
+        else if (event->keyboard.keycode == ALLEGRO_KEY_Q) {
+            p->control->up = 0;
+        }
     }
 }
 
@@ -533,16 +560,18 @@ void player1_update_bullets(player1 *p, int world_width) {
     bullet **curr = &(p->gun->shots);
     while (*curr) {
         // Mova apenas a bala atual!
-        if (!(*curr)->trajectory)
+        if ((*curr)->trajectory == BULLET_TRAJ_LEFT)
             (*curr)->x -= BULLET_MOVE;
-        else
+        else if ((*curr)->trajectory == BULLET_TRAJ_RIGHT)
             (*curr)->x += BULLET_MOVE;
+        else if ((*curr)->trajectory == BULLET_TRAJ_UP)
+            (*curr)->y -= BULLET_MOVE;
 
         // Atualize a distância percorrida
         (*curr)->distance_traveled += BULLET_MOVE;
 
         // Remove se sair da tela do mundo ou se andou 600 pixels
-        if ((*curr)->x < 0 || (*curr)->x > world_width || (*curr)->distance_traveled >= 600) {
+        if ((*curr)->x < 0 || (*curr)->x > world_width || (*curr)->y < 0 || (*curr)->distance_traveled >= 600) {
             bullet *to_remove = *curr;
             *curr = (bullet*)(*curr)->next;
             bullet_destroy(to_remove);
@@ -598,7 +627,7 @@ void player1_get_hitbox(player1 *p, int player_screen_x, int player_screen_y, in
         draw_x = player_screen_x + 20; // mesmo offset do desenho agachado
         draw_y = p->player_y + ((p->idle_frame_height - p->squat_frame_height) * p->player_scale);
         *hitbox_w = sprite_w * 0.25;
-        *hitbox_h = sprite_h * 0.25;
+        *hitbox_h = sprite_h * 0.35;
         *hitbox_x = draw_x + (sprite_w - *hitbox_w) / 2 - 25;
         *hitbox_y = draw_y + (sprite_h - *hitbox_h) / 2 + 80;
     } else {
@@ -608,8 +637,8 @@ void player1_get_hitbox(player1 *p, int player_screen_x, int player_screen_y, in
         draw_x = player_screen_x;
         draw_y = p->player_y;
         *hitbox_w = sprite_w * 0.25;
-        *hitbox_h = sprite_h * 0.5;
+        *hitbox_h = sprite_h * 0.45; // mais alto
         *hitbox_x = draw_x + (sprite_w - *hitbox_w) / 2;
-        *hitbox_y = draw_y + (sprite_h - *hitbox_h) / 2 + 50;
+        *hitbox_y = draw_y + (sprite_h - *hitbox_h) / 2 + 60; // menos deslocado para baixo
     }
 }

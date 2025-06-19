@@ -29,6 +29,7 @@ slime_ball* slime_ball_create(float x, float y, float vx, float vy, slime_type t
 void slime_ball_update(slime_ball **head, int world_width);
 void slime_ball_draw(slime_ball *head, int camera_x);
 void slime_ball_destroy(slime_ball *b);
+void slime_ball_destroy_all(slime_ball **head);
 void slime_ball_check_player_collision(slime_ball *head, player1 *p, int player_screen_x, int player_screen_y);
 void slime_ball_load_sprite();
 void slime_ball_unload_sprite();

@@ -1,20 +1,13 @@
 [NECESSÁRIO]
-- Implementar som (!)
-- Arrumar agachamento
-- Arrumar agachamento com tiro
-- Arrumar "jogar novamente" para resetar tudo
-- Quando zumbi morre e eu passo dele, ele vira para mim
 
 [EXTRAS]
 - Pause
-- Implementar ataque corpo a corpo
 - Estamina -> recarregar arma (cooldown)
 - Reload da arma -> hud da arma
-- Adicionar outros gangsters para o usuário selecionar
+- Implementar som
+- Implementar ataque corpo a corpo
 
 [REFINO]
 - Deixar a camera travada ao encontrar o boss
-- Arrumar animação de atirar agachado (colocar +1 frame no sprite de fogo da arma)
 - Colocar as vidas com o gangster fumando animado
-- Cor diferente quando agacha (squat)
 - Controlar cooldown do agachamento

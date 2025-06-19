@@ -3,7 +3,7 @@
 
 bullet* bullet_create(unsigned short x, unsigned short y, unsigned char trajectory, bullet *next){			//Implementação da função "bullet_create"
 
-	if ((trajectory < 0) || (trajectory > 1)) return NULL;													//Verifica se a trajetória informada para o projétil é válida
+	if ((trajectory < 0) || (trajectory > 2)) return NULL;													//Verifica se a trajetória informada para o projétil é válida
 
 	bullet *new_bullet = (bullet*) malloc(sizeof(bullet));													//Aloca memória na heap para uma instância de projétil
 	if (!new_bullet) return NULL;																			//Verifica o sucesso da alocação de memória; retorna NULL em caso de falha
@@ -18,8 +18,9 @@ bullet* bullet_create(unsigned short x, unsigned short y, unsigned char trajecto
 void bullet_move(bullet *elements){																			//Implementação da função "bullet_move"
 
 	for (bullet *index = elements; index != NULL; index = (bullet*) index->next){							//Para cada projétil presente na lista de projéteis informada
-		if (!index->trajectory) index->x = index->x - BULLET_MOVE;											//Se a trajetória for para a esquerda, movimenta um passo à esquerda
-		else index->x = index->x + BULLET_MOVE;																//Se a trajetória for para a direita, movimenta um passo à direita
+		if (index->trajectory == BULLET_TRAJ_LEFT) index->x = index->x - BULLET_MOVE;						//Se a trajetória for para a esquerda, movimenta um passo à esquerda
+		else if (index->trajectory == BULLET_TRAJ_RIGHT) index->x = index->x + BULLET_MOVE;					//Se a trajetória for para a direita, movimenta um passo à direita
+		else if (index->trajectory == BULLET_TRAJ_UP) index->y = index->y - BULLET_MOVE;
 	}
 }
 
