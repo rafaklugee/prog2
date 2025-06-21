@@ -9,6 +9,9 @@
         "slimeball.h": "c",
         "allegro_font.h": "c",
         "stdio.h": "c",
-        "player1.h": "c"
+        "player1.h": "c",
+        "boss.h": "c",
+        "allegro_ttf.h": "c",
+        "background.h": "c"
     }
 }

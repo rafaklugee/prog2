@@ -36,7 +36,7 @@ boss* boss_create(int x, int y, float scale) {
     b->frame_delay = 10;
     b->frame_counter = 0;
     b->is_active = 0;
-    b->health = 10;
+    b->health = 35;
     b->is_hurt = 0;
     // Dano
     b->hurt_max_frames = 2;
@@ -58,6 +58,7 @@ boss* boss_create(int x, int y, float scale) {
     b->attack_max_frames = 6;
     b->attack_frame_delay = 7;
     b->attack_frame_counter = 0;
+    b->attack_cooldown_base = 90;
     srand(time(NULL));
     b->attack_cooldown = 90 + rand() % 61; // 3-5 segundos
     b->zombie_spawn_cooldown = 180 + rand() % 120; // 6-10 segundos
@@ -73,13 +74,26 @@ boss* boss_create(int x, int y, float scale) {
 
 // 
 void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
-    if (!b || !b->is_active) 
+    if (!b || (!b->is_active && !b->is_dead)) 
         return;
     int draw_x = b->x - camera_x;
     int draw_y = b->y;
 
-    // Desenha o sprite de ataque
-    if (b->is_attacking) {
+    // Morte
+    if (b->is_dead) {
+        int frame_w = al_get_bitmap_width(b->death) / b->death_max_frames;
+        int frame_h = al_get_bitmap_height(b->death);
+        int frame_x = b->death_frame * frame_w;
+        al_draw_scaled_bitmap(
+            b->death,
+            frame_x, 0, frame_w, frame_h,
+            draw_x, draw_y,
+            frame_w * b->scale, frame_h * b->scale,
+            0
+        );
+    }
+    // Ataque
+    else if (b->is_attacking) {
         ALLEGRO_BITMAP *atk = (b->attack_type == 1) ? b->attack1 : b->attack2;
         int frame_w = al_get_bitmap_width(atk) / b->attack_max_frames;
         int frame_h = al_get_bitmap_height(atk);
@@ -91,8 +105,9 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
             frame_w * b->scale, frame_h * b->scale,
             0
         );
-    // Desenha o sprite de dano (hurt)
-    } else if (b->is_hurt && b->hurt_timer > 0) {
+    }
+    // Dano (hurt)
+    else if (b->is_hurt && b->hurt_timer > 0) {
         int frame_x = b->hurt_frame * b->hurt_frame_width;
         al_draw_scaled_bitmap(
             b->hurt,
@@ -101,31 +116,9 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
             b->hurt_frame_width * b->scale, b->hurt_frame_height * b->scale,
             0
         );
-        b->hurt_frame_counter++;
-        if (b->hurt_frame_counter >= b->hurt_frame_delay) {
-            b->hurt_frame = (b->hurt_frame + 1) % b->hurt_max_frames;
-            b->hurt_frame_counter = 0;
-        }
-        b->hurt_timer--;
-        if (b->hurt_timer <= 0) {
-            b->is_hurt = 0;
-            b->hurt_frame = 0;
-        }
-    // Desenha o sprite de morte
-    } else if (b->is_dead) {
-        int frame_w = al_get_bitmap_width(b->death) / b->death_max_frames;
-        int frame_h = al_get_bitmap_height(b->death);
-        int frame_x = b->death_frame * frame_w;
-        al_draw_scaled_bitmap(
-            b->death,
-            frame_x, 0, frame_w, frame_h,
-            draw_x, draw_y,
-            frame_w * b->scale, frame_h * b->scale,
-            0
-        );
-        return;
-    // Desenha o sprite parado (idle)
-    } else {
+    }
+    // Idle (parado)
+    else {
         int frame_x = b->frame * b->frame_width;
         al_draw_scaled_bitmap(
             b->idle,
@@ -134,11 +127,6 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
             b->frame_width * b->scale, b->frame_height * b->scale,
             0
         );
-        b->frame_counter++;
-        if (b->frame_counter >= b->frame_delay) {
-            b->frame = (b->frame + 1) % b->max_frames;
-            b->frame_counter = 0;
-        }
     }
 
     // Desenha a hitbox do boss
@@ -166,7 +154,7 @@ void boss_destroy(boss *b) {
 
 // Lógicas de update do boss
 void boss_update(boss *b) {
-    if (!b || !b->is_active) 
+    if (!b || (!b->is_active && !b->is_dead)) 
         return;
 
     // Se o boss morreu, executa a animação de morte
@@ -229,7 +217,7 @@ void boss_update(boss *b) {
                 // No fim do ataque, reseta os frames de ataque
                 b->is_attacking = 0;
                 b->attack_frame = 0;
-                b->attack_cooldown = 90 + rand() % 61;
+                b->attack_cooldown = b->attack_cooldown_base + rand() % 61;
             }
         }
     // Se o cooldown de ataque está ativo, decrementa
@@ -248,6 +236,29 @@ void boss_update(boss *b) {
             else {
                 b->attack_cooldown = 15;
             }
+        }
+    }
+
+    // Avanço de frame para dano (hurt)
+    if (b->is_hurt && b->hurt_timer > 0) {
+        b->hurt_frame_counter++;
+        if (b->hurt_frame_counter >= b->hurt_frame_delay) {
+            b->hurt_frame = (b->hurt_frame + 1) % b->hurt_max_frames;
+            b->hurt_frame_counter = 0;
+        }
+        b->hurt_timer--;
+        if (b->hurt_timer <= 0) {
+            b->is_hurt = 0;
+            b->hurt_frame = 0;
+        }
+    }
+
+    // Avanço de frame para idle (parado)
+    if (!b->is_attacking && !b->is_hurt && !b->is_dead) {
+        b->frame_counter++;
+        if (b->frame_counter >= b->frame_delay) {
+            b->frame = (b->frame + 1) % b->max_frames;
+            b->frame_counter = 0;
         }
     }
 
@@ -288,7 +299,9 @@ void boss_check_bullet_collision(boss *b, pistol *g) {
                     b->is_dead = 1;
                     b->death_frame = 0;
                     b->death_frame_counter = 0;
-                    b->death_timer = 600;
+                    b->death_timer = 60;
+                    b->is_hurt = 0;
+                    b->hurt_timer = 0;
                 }
             }
             *curr = (bullet*)bul->next;
@@ -310,13 +323,13 @@ int boss_handle_death_end(
     // Se o boss está morto e a animação de morte terminou, mostra o menu de vitória
     if (b && b->is_dead && b->death_frame >= b->death_max_frames - 1 && b->death_timer <= 0) {
         boss_death_end_timer++;
-        if (boss_death_end_timer > 15) {
+        if (boss_death_end_timer > 5) {
             int menu_choice = show_victory_menu(disp, font, big_font, queue, bg);
             if (menu_choice == 1) {
                 // Sair do jogo
                 return 1;
             } else {
-                int menu_result = show_menu(disp, font, queue, bg);
+                int menu_result = show_main_menu(disp, font, queue, bg);
                 if (menu_result == 1) {
                      // Sair do jogo
                     return 1;

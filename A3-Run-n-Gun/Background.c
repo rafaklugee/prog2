@@ -5,16 +5,16 @@
 #include <allegro5/allegro_image.h>
 #include "Background.h"
 
-Background* background_create(const char *sky_path, const char *far_path, const char *mid_path, const char *near_path, int y_screen, int bg_repeat) {
+Background* background_create(int y_screen, int bg_repeat) {
     Background *bg = malloc(sizeof(Background));
     if (!bg) 
         return NULL;
 
     // Sprites
-    bg->sky = al_load_bitmap(sky_path);
-    bg->bg_far = al_load_bitmap(far_path);
-    bg->bg_mid = al_load_bitmap(mid_path);
-    bg->bg_near = al_load_bitmap(near_path);
+    bg->sky     = al_load_bitmap("img/PNG/Postapocalypce2/Bright/sky.png");
+    bg->bg_far  = al_load_bitmap("img/PNG/Postapocalypce2/Bright/houses&trees_bg.png");
+    bg->bg_mid  = al_load_bitmap("img/PNG/Postapocalypce2/Bright/houses.png");
+    bg->bg_near = al_load_bitmap("img/PNG/Postapocalypce2/Bright/road.png");
     bg->y_screen = y_screen;
     bg->bg_repeat = bg_repeat;
 

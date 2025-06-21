@@ -17,6 +17,7 @@ enemy* enemy_create(float x, float y, float speed) {
     e->x = x;
     e->y = y;
     e->speed = speed;
+    e->attack_cooldown_base = 90;
     // Não há necessidade de outra função para dar load pois tem apenas 3 sprites
     e->walk_sprite = al_load_bitmap("sprites/zombies/Zombie_3/Walk.png");
     e->dead_sprite = al_load_bitmap("sprites/zombies/Zombie_3/Dead.png");
@@ -79,7 +80,7 @@ void enemy_update(enemy *e) {
             e->is_attacking = 1;
             e->attack_frame = 0;
             e->attack_frame_counter = 0;
-            e->attack_cooldown = 90; // 3 segundos de recarga (cooldown)
+            e->attack_cooldown = e->attack_cooldown_base; // Cooldown do ataque (dificuldades)
         }
         if (e->is_attacking) {
             e->attack_frame_counter++;

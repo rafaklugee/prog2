@@ -28,6 +28,7 @@ typedef struct enemy {
     int slime_shot_this_attack;
 
     // Variáveis de controle geral
+    int attack_cooldown_base;
     struct enemy *next;
     enemy_state state;
 } enemy;

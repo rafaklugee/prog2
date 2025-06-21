@@ -23,25 +23,21 @@ void reset_game_state(
     // Destrói tudo criado e cria tudo novamente
     player1_destroy(*p);
     *p = create_player1(player_screen_y, X_SCREEN, Y_SCREEN);
-    player1_load_sprites(
-        *p,
-        "sprites/gangsters/Gangsters_1/Idle.png",
-        "sprites/gangsters/Gangsters_1/Idle_Otherside.png",
-        "sprites/gangsters/Gangsters_1/Run.png",
-        "sprites/gangsters/Gangsters_1/Squat.png",
-        "sprites/gangsters/Gangsters_1/Jump.png",
-        "sprites/gangsters/Gangsters_1/Shot.png",
-        "sprites/gangsters/Gangsters_1/Squat_Shot.png",
-        "sprites/gangsters/Gangsters_1/Hurt.png",
-        "sprites/gangsters/Gangsters_1/Dead.png",
-        "sprites/gangsters/Gangsters_1/Gangster_Health.png"
-    );
+    player1_load_sprites(*p);
     // Destrói todos os inimigos
     enemy_destroy_all(*enemies);
     // Cria novos inimigos
-    *enemies = enemy_create(900, Y_SCREEN - 325, 1.0);
-    (*enemies)->next = enemy_create(1300, Y_SCREEN - 325, 0.75);
-    (*enemies)->next->next = enemy_create(1800, Y_SCREEN - 325, 0.5);
+    int enemy_positions[6] = {600, 1100, 1700, 2300, 2900, 3500};
+    float enemy_speeds[6] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+    *enemies = enemy_create(enemy_positions[0], Y_SCREEN - 325, enemy_speeds[0]);
+    enemy *curr = *enemies;
+    for (int i = 1; i < 6; i++) {
+        curr->next = enemy_create(enemy_positions[i], Y_SCREEN - 325, enemy_speeds[i]);
+        curr = curr->next;
+    }
+    curr->next = NULL;
+
     *player_world_x = 50;
     *current_camera_x = 0;
     (*p)->is_dead = 0;
@@ -80,7 +76,54 @@ void draw_hud(player1 *p, ALLEGRO_FONT *font) {
             0
         );
     }
-    // al_draw_textf(font, al_map_rgb(255,0,0), 20, 20, 0, "VIDA: %d", p->health);
+
+    // Desenha a HUD da munição com escala reduzida
+    int ammo_x = 30;
+    int ammo_y = 55;
+    int ammo_w = al_get_bitmap_width(p->hud_ammo);
+    int ammo_h = al_get_bitmap_height(p->hud_ammo);
+    float scale = 0.13f;
+
+    if (!p->is_dead) {
+        // Desenha o fundo da munição
+        al_draw_scaled_bitmap(
+            p->hud_ammo,
+            0, 0, ammo_w, ammo_h,
+            ammo_x - 11, ammo_y - 4,
+            ammo_w * scale, ammo_h * scale,
+            0
+        );
+
+        // Desenha o texto da munição
+        al_draw_textf(
+            font,
+            al_map_rgb(204 ,171 , 58),
+            ammo_x + (ammo_w * scale) / 2, ammo_y + (ammo_h * scale) / 2 - 10,
+            ALLEGRO_ALIGN_CENTRE,
+            "%02d / %02d", p->ammo, p->max_ammo
+        );
+
+        // Se o player está recarregando, desenha a barrinha de progresso
+        if (p->is_reloading) {
+            // Tamanho e posição da barrinha
+            float bar_w = ammo_w * scale;
+            float bar_h = 8;
+            float bar_x = ammo_x - 12;
+            float bar_y = ammo_y + ammo_h * scale + 2;
+
+            // Progresso do reload
+            float progress = (float)p->reload_frame / (float)p->reload_max_frames;
+            if (progress > 1.0f) 
+                progress = 1.0f;
+
+            // Fundo da barrinha
+            al_draw_filled_rectangle(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h, al_map_rgb(60, 60, 60));
+            // Progresso
+            al_draw_filled_rectangle(bar_x, bar_y, bar_x + bar_w * progress, bar_y + bar_h, al_map_rgb(42, 19, 61));
+            // Borda
+            al_draw_rectangle(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h, al_map_rgb(255,255,255), 1);
+        }
+    }
 }
 
 // Função auxiliar para melhor cálculo de colisão (círculo-retângulo)

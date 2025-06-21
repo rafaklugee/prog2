@@ -4,6 +4,8 @@
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_ttf.h>
+#include <allegro5/allegro_audio.h>
+#include <allegro5/allegro_acodec.h>
 #include <math.h>
 
 #include "Player1.h"
@@ -40,6 +42,13 @@ slime_ball *slime_balls = NULL;
 // Variável para o boss final
 boss *final_boss = NULL;
 
+// Variável para controlar o volume
+float global_volume = 1.0f;
+
+// Variáveis para a música principal
+ALLEGRO_SAMPLE *main_music = NULL;
+ALLEGRO_SAMPLE_ID main_music_id;
+
 #define DIR_RIGHT 1 // Direção para a direita é 1
 #define DIR_LEFT  -1 // Direção para a esquerda é -1
 int last_dir = DIR_RIGHT; // Armazena a última direção do player (começa na direita)
@@ -53,11 +62,15 @@ int main(){
     al_init_image_addon(); // Habilita o addon de imagens, que permite carregar imagens em formatos como PNG, JPEG, etc.
 	al_install_keyboard(); // Habilita a entrada via teclado (eventos de teclado), no programa
     slime_ball_load_sprite(); // Carrega o sprite da slime ball, que é usado pelos inimigos -> Carregar sprite aqui mesmo ?
+    al_install_audio(); // Habilita o addon de áudio, que permite tocar sons e músicas no programa
+    al_init_acodec_addon(); // Habilita o addon de codecs de áudio, que permite carregar formatos de áudio como MP3, OGG, etc.
+    al_reserve_samples(16); // Reserva espaço para 16 samples de áudio, que podem ser usados para tocar sons no jogo
 
     ALLEGRO_TIMER* timer = al_create_timer(1.0 / 30.0);	// Cria o relógio do jogo; isso indica quantas atualizações serão realizadas por segundo (30, neste caso)
 	ALLEGRO_EVENT_QUEUE* queue = al_create_event_queue(); // Cria a fila de eventos; todos os eventos (programação orientada a eventos) 
 	ALLEGRO_DISPLAY* disp = al_create_display(X_SCREEN, Y_SCREEN); // Cria uma janela para o programa, define a largura (x) e a altura (y) da tela em píxeis (800x600, neste caso)
 
+    ALLEGRO_FONT* small_font = al_load_ttf_font("fonts/TheGodFather.ttf", 16, 0); // Carrega a fonte TTF do jogo (tamanho pequeno)
     ALLEGRO_FONT* font = al_load_ttf_font("fonts/TheGodFather.ttf", 36, 0); // Carrega a fonte TTF do jogo (tamanho normal)
     ALLEGRO_FONT* big_font = al_load_ttf_font("fonts/TheGodFather.ttf", 64, 0); // // Carrega a fonte TTF do jogo (tamanho grande)
     if (!font || !big_font) return -1;
@@ -66,27 +79,61 @@ int main(){
 	al_register_event_source(queue, al_get_display_event_source(disp)); // Indica que eventos de tela serão inseridos na nossa fila de eventos
 	al_register_event_source(queue, al_get_timer_event_source(timer)); // Indica que eventos de relógio serão inseridos na nossa fila de eventos
 
+    main_music = al_load_sample("sounds/Principal_Song.wav");
+    if (!main_music) {
+        fprintf(stderr, "Falha ao carregar a música principal!\n");
+    } else {
+        al_play_sample(main_music, global_volume * 0.2, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
+    }
+    
     // Criando o background
-    Background *bg = background_create(
-        "img/PNG/Postapocalypce2/Bright/sky.png",
-        "img/PNG/Postapocalypce2/Bright/houses&trees_bg.png",
-        "img/PNG/Postapocalypce2/Bright/houses.png",
-        "img/PNG/Postapocalypce2/Bright/road.png",
-        Y_SCREEN, BG_REPEAT
-    );
+    Background *bg = background_create(Y_SCREEN, BG_REPEAT);
     if (!bg) {
         fprintf(stderr, "Falha ao criar o background\n");
         return -1;
     }
 
-    // Mostrando o menu com o background
-    int menu_choice = show_menu(disp, font, queue, bg);
-    if (menu_choice == 1) { // Sair selecionado
+    // Mostrando o menu principal
+    int main_choice = show_main_menu(disp, font, queue, bg);
+    // Sair
+    if (main_choice == 1) { 
         al_destroy_font(font);
         al_destroy_event_queue(queue);
         al_destroy_timer(timer);
         al_destroy_display(disp);
         return 0;
+    }
+
+    // Mostrando o menu de dificuldade
+    int menu_choice = -1;
+    while (menu_choice < 0) {
+        menu_choice = show_difficulty_menu(disp, font, queue, bg);
+        if (menu_choice < 0) {
+            // Volta ao menu principal
+            int main_choice = show_main_menu(disp, font, queue, bg);
+            // Sair
+            if (main_choice == 1) { 
+                al_destroy_font(font);
+                al_destroy_event_queue(queue);
+                al_destroy_timer(timer);
+                al_destroy_display(disp);
+                return 0;
+            }
+        }
+    }
+
+    // Definição das variáveis de dificuldade (Fácil)
+    float enemy_speed_multiplier = 1.0f;
+    int enemy_attack_cooldown = 90;
+
+    // Médio
+    if (menu_choice == 1) { 
+        enemy_speed_multiplier = 1.3f;
+        enemy_attack_cooldown = 60;
+    // Difícil
+    } else if (menu_choice == 2) { 
+        enemy_speed_multiplier = 1.7f;
+        enemy_attack_cooldown = 40;
     }
 
     // Criando o player
@@ -95,39 +142,50 @@ int main(){
             fprintf(stderr, "Falha ao criar o jogador\n");
             return -1;
         }
-        if (!player1_load_sprites(
-                p,
-                "sprites/gangsters/Gangsters_1/Idle.png",
-                "sprites/gangsters/Gangsters_1/Idle_Otherside.png",
-                "sprites/gangsters/Gangsters_1/Run.png",
-                "sprites/gangsters/Gangsters_1/Squat.png",
-                "sprites/gangsters/Gangsters_1/Jump.png",
-                "sprites/gangsters/Gangsters_1/Shot.png",
-                "sprites/gangsters/Gangsters_1/Squat_Shot.png",
-                "sprites/gangsters/Gangsters_1/Hurt.png",
-                "sprites/gangsters/Gangsters_1/Dead.png",
-                "sprites/gangsters/Gangsters_1/Gangster_Health.png"
+        if (!player1_load_sprites(p)) {
+        fprintf(stderr, "Falha ao carregar sprites do player\n");
+        player1_destroy(p);
+        return -1;
+    }
 
-            )) {
-            fprintf(stderr, "Falha ao carregar sprites do player\n");
-            player1_destroy(p);
-            return -1;
-        }
+    // Criando 6 inimigos espalhados pelo mapa
+    int enemy_positions[6] = {600, 1100, 1700, 2300, 2900, 3500};
+    float enemy_speeds[6] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
-    // Criando inimigos (3)
-    enemies = enemy_create(900, Y_SCREEN - 325, 1.0);
-    enemies->next = enemy_create(1300, Y_SCREEN - 325, 0.75);
-    enemies->next->next = enemy_create(1800, Y_SCREEN - 325, 0.5);
+    enemies = enemy_create(enemy_positions[0], Y_SCREEN - 325, enemy_speeds[0] * enemy_speed_multiplier);
+    enemy *curr = enemies;
+    for (int i = 1; i < 6; i++) {
+        curr->next = enemy_create(enemy_positions[i], Y_SCREEN - 325, enemy_speeds[i] * enemy_speed_multiplier);
+        curr = curr->next;
+    }
+    curr->next = NULL;
+
+    // Após criar, ajustando o cooldown de ataque de todos
+    for (enemy *e = enemies; e; e = e->next) {
+        e->attack_cooldown = 0;
+        e->attack_cooldown_base = enemy_attack_cooldown;
+    }
 
     // Criando o boss, mas inativo
     final_boss = boss_create(
-        BG_REPEAT * bg->scaled_w_near - 300, // Posição X do boss no mundo (final do mapa)
-        Y_SCREEN - 325, // Ajuste da posição Y do boss
-        3.5f // Escala do boss
+        BG_REPEAT * bg->scaled_w_near - 300,
+        Y_SCREEN - 325,
+        3.5f
     );
+
+    // Ajuste o cooldown do boss conforme a dificuldade
+    if (menu_choice == 0) { // Fácil
+        final_boss->attack_cooldown_base = 90;
+    } else if (menu_choice == 1) { // Médio
+        final_boss->attack_cooldown_base = 60;
+    } else if (menu_choice == 2) { // Difícil
+        final_boss->attack_cooldown_base = 40;
+    }
+    final_boss->attack_cooldown = final_boss->attack_cooldown_base;
 
     bool redraw = true; // Variável para controlar quando a tela deve ser redesenhada
     bool running = true; // Variável para controlar o loop principal do jogo
+    bool paused = false; // Variável para controlar o estado de pause
 
     // Definição da posição fixa do player na tela (eixo Y)
     int player_screen_y = Y_SCREEN - 325;
@@ -187,7 +245,7 @@ int main(){
             player1_draw(p, player_screen_x, player_screen_y);
 
             // Desenha a HUD 
-            draw_hud(p, font);
+            draw_hud(p, small_font);
 
             // Desenhando a hitbox do jogador
             int hx, hy, hw, hh;
@@ -197,8 +255,13 @@ int main(){
             }
             
             // Desenhar o boss final se ele estiver ativo
-            if (final_boss && final_boss->is_active) {
+            if (final_boss && (final_boss->is_active || final_boss->is_dead)) {
                 boss_draw(final_boss, current_camera_x, show_hitboxes);
+            }
+
+            // Desenha mensagem de pause
+            if (paused) {
+                draw_pause_menu(font);
             }
 
             al_flip_display(); // Atualiza a tela com tudo que foi desenhado
@@ -207,80 +270,98 @@ int main(){
 
         // Atualizando eventos com base no relógio (timer)
         if (event.type == ALLEGRO_EVENT_TIMER) {
-            // Limite para não sair do início do mapa
-            if (player_world_x < 0) player_world_x = 0;
+            if (!paused) {
+                // Limite para não sair do início do mapa
+                if (player_world_x < 0) player_world_x = 0;
 
-            // Limite para não sair do final do mapa
-            if (player_world_x > world_width - 150) player_world_x = world_width - 150;
+                // Limite para não sair do final do mapa
+                if (player_world_x > world_width - 400) player_world_x = world_width - 400;
 
-            // Atualiza o player no mundo
-            player1_update(p, &player_world_x, world_width, player_screen_y);
-            
-            // Atualiza as balas que o player atira
-            player1_update_bullets(p, world_width);
+                // Atualiza o player no mundo
+                player1_update(p, &player_world_x, world_width, player_screen_y);
+                
+                // Atualiza as balas que o player atira
+                player1_update_bullets(p, world_width);
 
-            // Atualiza todos os inimigos
-            enemy_update_all(enemies);
+                // Atualiza todos os inimigos
+                enemy_update_all(enemies);
 
-            // Atualizar todas as slime balls
-            slime_ball_update(&slime_balls, world_width);
+                // Atualizar todas as slime balls
+                slime_ball_update(&slime_balls, world_width);
 
-            // Verifica se há colisão de balas com inimigos
-            enemy_check_bullet_collisions(enemies, p->gun);
+                // Verifica se há colisão de balas com inimigos
+                enemy_check_bullet_collisions(enemies, p->gun);
 
-            // Remove inimigos mortos cujo cooldown acabou
-            enemy_remove_dead(&enemies);
+                // Remove inimigos mortos cujo cooldown acabou
+                enemy_remove_dead(&enemies);
 
-            // Apenas se todos inimigos morreram, ativa o boss final
-            if (!enemies && final_boss && !final_boss->is_active) {
-                final_boss->is_active = 1;
+                // Apenas se todos inimigos morreram, ativa o boss final
+                if (!enemies && final_boss && !final_boss->is_active) {
+                    final_boss->is_active = 1;
+                }
+
+                // Calcule a hitbox do player na tela
+                int player_hitbox_x, player_hitbox_y, player_hitbox_w, player_hitbox_h;
+                player1_get_hitbox(p, player_screen_x, player_screen_y, &player_hitbox_x, &player_hitbox_y, &player_hitbox_w, &player_hitbox_h);
+
+                // Verifica se há colisão entre slime balls e o player
+                check_slime_collision_with_player(
+                    p, current_camera_x,
+                    player_hitbox_x, player_hitbox_y, player_hitbox_w, player_hitbox_h,
+                    player_screen_y
+                );
+
+                // Checa colisão dos tiros com o boss
+                if (final_boss && final_boss->is_active && final_boss->health > 0) {
+                    boss_check_bullet_collision(final_boss, p->gun);
+                }
+
+                // Atualiza todas as slime balls
+                slime_ball_update(&slime_balls, world_width);
+
+                // Atualiza o boss se ele estiver ativo
+                if (final_boss && (final_boss->is_active || final_boss->is_dead)) {
+                    boss_update(final_boss);
+                }
+
+                // Atualiza após derrotar o final boss
+                if (boss_handle_death_end(final_boss, disp, font, big_font, queue, bg, &p, &enemies, &player_world_x, &current_camera_x, player_screen_y, BG_REPEAT)) {
+                    running = false;
+                }
             }
-
-            // Calcule a hitbox do player na tela
-            int player_hitbox_x, player_hitbox_y, player_hitbox_w, player_hitbox_h;
-            player1_get_hitbox(p, player_screen_x, player_screen_y, &player_hitbox_x, &player_hitbox_y, &player_hitbox_w, &player_hitbox_h);
-
-            // Verifica se há colisão entre slime balls e o player
-            check_slime_collision_with_player(
-                p, current_camera_x,
-                player_hitbox_x, player_hitbox_y, player_hitbox_w, player_hitbox_h,
-                player_screen_y
-            );
-
-            // Checa colisão dos tiros com o boss
-            if (final_boss && final_boss->is_active && final_boss->health > 0) {
-                boss_check_bullet_collision(final_boss, p->gun);
-            }
-
-            // Atualiza todas as slime balls
-            slime_ball_update(&slime_balls, world_width);
-
-            // Atualiza o boss se ele estiver ativo
-            if (final_boss && (final_boss->is_active || final_boss->is_dead)) {
-                boss_update(final_boss);
-            }
-
-            // Atualiza após derrotar o final boss
-            if (boss_handle_death_end(final_boss, disp, font, big_font, queue, bg, &p, &enemies, &player_world_x, &current_camera_x, player_screen_y, BG_REPEAT)) {
-                running = false;
-            }
-
             // Muda a flag para redesenhar com base nos eventos que aconteceram
             redraw = true;
         }
 
-        // Eventos de teclado (se aperta ou solta alguma tecla)
+        // Eventos de teclado gerais
         if (event.type == ALLEGRO_EVENT_KEY_DOWN || event.type == ALLEGRO_EVENT_KEY_UP) {
             // Atualiza os eventos de teclado do player1
-            player1_handle_event(p, &event, player_world_x);
+            if (!paused) {
+                player1_handle_event(p, &event, player_world_x);
+            }
             
             // Encerra o jogo no "ESC"
-            if (event.type == ALLEGRO_EVENT_KEY_DOWN && event.keyboard.keycode == ALLEGRO_KEY_ESCAPE) 
+            if (event.type == ALLEGRO_EVENT_KEY_DOWN && event.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
                 running = false;
+            }
             
             // Mostra a hitbox no "H"
             if (event.type == ALLEGRO_EVENT_KEY_DOWN && event.keyboard.keycode == ALLEGRO_KEY_H) {
-            show_hitboxes = !show_hitboxes;
+                show_hitboxes = !show_hitboxes;
+            }
+
+            // Pause no "P"
+            if (event.type == ALLEGRO_EVENT_KEY_DOWN && event.keyboard.keycode == ALLEGRO_KEY_P) {
+                paused = !paused;
+                redraw = true;
+                if (paused) {
+                    // Limpa os controles do player ao pausar
+                    p->control->left = 0;
+                    p->control->right = 0;
+                    p->control->up = 0;
+                    p->control->down = 0;
+                    p->is_shooting_pressed = 0;
+                }
             }
         }
         else if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) // Se fechar o display sai do jogo
@@ -309,6 +390,7 @@ int main(){
     al_destroy_event_queue(queue);
     al_destroy_timer(timer);
     al_destroy_display(disp);
+    al_destroy_sample(main_music);
     return 0;
 
 

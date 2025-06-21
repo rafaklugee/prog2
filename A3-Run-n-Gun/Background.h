@@ -13,7 +13,7 @@ typedef struct {
     int y_screen;
 } Background;
 
-Background* background_create(const char *sky_path, const char *far_path, const char *mid_path, const char *near_path, int y_screen, int bg_repeat);
+Background* background_create(int y_screen, int bg_repeat);
 void background_draw(Background *bg, float scroll_x, int x_screen);
 void background_destroy(Background *bg);
 

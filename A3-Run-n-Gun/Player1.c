@@ -1,11 +1,16 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_audio.h>
+#include <allegro5/allegro_acodec.h>
 #include "Player1.h"
 
 #define DIR_RIGHT 1
 #define DIR_LEFT -1
+
+extern float global_volume;
 
 // Inicialização do Player 1 com atributos iniciais
 player1* create_player1(unsigned short initial_y, unsigned short max_x, unsigned short max_y) {
@@ -32,20 +37,28 @@ player1* create_player1(unsigned short initial_y, unsigned short max_x, unsigned
 }
 
 // Carrega e inicializa todas as sprites necessárias para o Player1
-int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, const char *run,
-                             const char *squat, const char *jump, const char *shot, const char *squat_shot, const char *hurt, const char *dead, const char *hud_health) {
-    p->idle = al_load_bitmap(idle);
-    p->idle_left = al_load_bitmap(idle_left);
-    p->run = al_load_bitmap(run);
-    p->squat = al_load_bitmap(squat);
-    p->jump = al_load_bitmap(jump);
-    p->shot = al_load_bitmap(shot);
-    p->squat_shot = al_load_bitmap(squat_shot);
-    p->hurt = al_load_bitmap(hurt);
-    p->dead = al_load_bitmap(dead);
-    p->hud_health = al_load_bitmap(hud_health);
+int player1_load_sprites(player1 *p) {
+    p->idle = al_load_bitmap("sprites/gangsters/Gangsters_1/Idle.png");
+    p->idle_left = al_load_bitmap("sprites/gangsters/Gangsters_1/Idle_Otherside.png");
+    p->run = al_load_bitmap("sprites/gangsters/Gangsters_1/Run.png");
+    p->squat = al_load_bitmap("sprites/gangsters/Gangsters_1/Squat.png");
+    p->jump = al_load_bitmap("sprites/gangsters/Gangsters_1/Jump.png");
+    p->shot = al_load_bitmap("sprites/gangsters/Gangsters_1/Shot.png");
+    p->squat_shot = al_load_bitmap("sprites/gangsters/Gangsters_1/Squat_Shot.png");
+    p->hurt = al_load_bitmap("sprites/gangsters/Gangsters_1/Hurt.png");
+    p->dead = al_load_bitmap("sprites/gangsters/Gangsters_1/Dead.png");
+    p->hud_health = al_load_bitmap("sprites/gangsters/Gangsters_1/Gangster_Health.png");
+    p->recharge = al_load_bitmap("sprites/gangsters/Gangsters_1/Recharge.png");
+    p->hud_ammo = al_load_bitmap("sprites/gangsters/Gangsters_1/Hud_Ammo.png");
 
-    if (!p->idle || !p->idle_left || !p->run || !p->squat || !p->jump || !p->shot || !p->hurt || !p->hud_health)
+    // Carrega som
+    p->gun_shot_sound = al_load_sample("sounds/Gun_Shot.wav");
+    p->gun_reload_sound = al_load_sample("sounds/Gun_Reload.wav");
+
+
+
+    if (!p->idle || !p->idle_left || !p->run || !p->squat || !p->jump || !p->shot 
+        || !p->hurt || !p->hud_health || !p->recharge || !p->hud_ammo || !p->gun_shot_sound || !p->gun_reload_sound)
         return 0;
 
     // Frames e dimensões
@@ -93,6 +106,17 @@ int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, co
     p->dead_frame_counter = 0;
     p->is_dead = 0;
 
+    p->reload_max_frames = 17;
+    p->reload_frame = 0;
+    p->reload_frame_width = al_get_bitmap_width(p->recharge) / p->reload_max_frames;
+    p->reload_frame_height = al_get_bitmap_height(p->recharge);
+    p->reload_frame_delay = 3;
+    p->reload_frame_counter = 0;
+    p->is_reloading = 0;
+    p->reload_cooldown = 0;
+    p->ammo = 30;
+    p->max_ammo = 90;
+
     return 1;
 }
 
@@ -100,6 +124,10 @@ int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, co
 void player1_update(player1 *p, int *player_world_x, int world_width, int player_screen_y) {
     // Se o player morreu, executa seus frames de morte e volta ao menu principal
     if (p->is_dead) {
+        // Interrompe o reload se morrer
+        p->is_reloading = 0;
+        p->reload_frame = 0;
+        p->reload_frame_counter = 0;
         p->dead_frame_counter++;
         if (p->dead_frame_counter >= p->dead_frame_delay) {
             p->dead_frame++;
@@ -117,6 +145,10 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
 
     // Se o player tomou hit (hurt), bloqueia seus ataques
     if (p->is_hurt) {
+        // Interrompe o reload ao tomar dano
+        p->is_reloading = 0;
+        p->reload_frame = 0;
+        p->reload_frame_counter = 0;
         p->hurt_frame_counter++;
         if (p->hurt_frame_counter >= p->hurt_frame_delay) {
             p->hurt_frame++;
@@ -130,7 +162,31 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
         return;
     }
 
-    // Controla a movimentação do player
+    // Se está recarregando, só anima o reload
+    if (p->is_reloading) {
+        p->reload_frame_counter++;
+        if (p->reload_frame_counter >= p->reload_frame_delay) {
+            p->reload_frame++;
+            p->reload_frame_counter = 0;
+        }
+        if (p->reload_frame >= p->reload_max_frames) {
+            p->is_reloading = 0;
+            p->reload_frame = 0;
+            p->reload_cooldown = 0;
+
+            int needed = 30 - p->ammo;
+            if (p->max_ammo >= needed) {
+                p->max_ammo -= needed;
+                p->ammo = 30;
+            } else {
+                p->ammo += p->max_ammo;
+                p->max_ammo = 0;
+                if (p->ammo > 30) p->ammo = 30;
+            }
+        }
+        return; // Bloqueia tudo enquanto recarrega
+    }
+
     // Se o player não está agachando e não está indo para direita ou esquerda
     if (!p->is_squatting && !(p->control->left && p->control->right)) {
         // Anda para esquerda
@@ -147,6 +203,12 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
     if (p->is_jumping) {
         p->jump_velocity += p->gravity;
         p->player_y += p->jump_velocity;
+        // Avanço de frame do pulo
+        p->frame_counter++;
+        if (p->frame_counter >= p->frame_delay) {
+            p->jump_frame = (p->jump_frame + 1) % p->jump_max_frames;
+            p->frame_counter = 0;
+        }
         // Garante que o jogador fique no chão
         if (p->player_y >= player_screen_y) {
             p->player_y = player_screen_y;
@@ -157,6 +219,52 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
     } else {
         // Se ele não estiver pulando, vão ficar no chão
         p->player_y = player_screen_y;
+    }
+
+    // Avanço de frame para agachar
+    if (p->control->down) {
+        if (!p->squat_anim_done) {
+            p->frame_counter++;
+            if (p->frame_counter >= p->frame_delay) {
+                p->squat_frame++;
+                p->frame_counter = 0;
+            }
+            if (p->squat_frame >= p->squat_max_frames - 1) {
+                p->squat_frame = p->squat_max_frames - 1;
+                p->squat_anim_done = 1;
+                p->is_squatting = 1;
+            }
+        } else {
+            p->is_squatting = 1;
+        }
+    } else {
+        p->squat_frame = 0;
+        p->squat_anim_done = 0;
+        p->is_squatting = 0;
+    }
+
+    // Avanço de frame para correr
+    if (p->control->left && !p->control->right) {
+        p->last_dir = DIR_LEFT;
+        p->frame_counter++;
+        if (p->frame_counter >= p->frame_delay) {
+            p->run_frame = (p->run_frame + 1) % p->run_max_frames;
+            p->frame_counter = 0;
+        }
+    } else if (p->control->right && !p->control->left) {
+        p->last_dir = DIR_RIGHT;
+        p->frame_counter++;
+        if (p->frame_counter >= p->frame_delay) {
+            p->run_frame = (p->run_frame + 1) % p->run_max_frames;
+            p->frame_counter = 0;
+        }
+    } else if (!p->is_jumping && !p->control->down) {
+        // Idle
+        p->frame_counter++;
+        if (p->frame_counter >= p->idle_frame_delay) {
+            p->idle_frame = (p->idle_frame + 1) % p->idle_max_frames;
+            p->frame_counter = 0;
+        }
     }
 
     // Se a arma não estiver recarregando...
@@ -180,9 +288,13 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
     }
 
     // Atualiza enquanto o player atira
-    if (p->is_shooting_pressed && p->gun->timer == 0) {
+    if (p->is_shooting_pressed && p->gun->timer == 0 && !p->is_reloading) {
         // Bloqueia tiro se estiver agachando ou correndo
         if (p->control->left || p->control->right || (p->control->down && !p->squat_anim_done)) {
+            return;
+        }
+        // Bloqueia tiro se não tiver munição
+        if (p->ammo <= 0) {
             return;
         }
         unsigned char traj;
@@ -191,7 +303,10 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
         // Se eu estou pressionando up (Q + SPACE), atira para cima
         if (p->control->up) {
             traj = BULLET_TRAJ_UP;
-            bullet_offset_x = 175;
+            if (p->last_dir == DIR_LEFT)
+                bullet_offset_x = 75;
+            else
+                bullet_offset_x = 175;
             bullet_offset_y = 180;
         // Senão, a bala vai para direita ou esquerda
         } else {
@@ -234,6 +349,11 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
             new_bullet->next = (struct bullet*)p->gun->shots;
             p->gun->shots = new_bullet;
 
+            // Toca o som do tiro
+            if (p->gun_shot_sound) {
+                al_play_sample(p->gun_shot_sound, global_volume, 0.0, 1.0, ALLEGRO_PLAYMODE_ONCE, NULL);
+            }
+
             // Tempo de cooldown para o tiro
             if (p->is_jumping)
                 p->gun->timer = PISTOL_COOLDOWN * 2;
@@ -250,12 +370,29 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
             } else {
                 p->is_squat_shooting = 0;
             }
+            // Gasta uma bala
+            p->ammo--;
         }
     }
 }
 
 // Lógicas de desenho
 void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
+    // Sprite de recarregamento (recharge)
+    if (p->is_reloading) {
+        int frame_x = p->reload_frame * p->reload_frame_width;
+        int flip = (p->last_dir == DIR_LEFT) ? ALLEGRO_FLIP_HORIZONTAL : 0;
+        al_draw_scaled_bitmap(
+            p->recharge,
+            frame_x, 0, p->reload_frame_width, p->reload_frame_height,
+            player_screen_x, p->player_y,
+            p->reload_frame_width * p->player_scale,
+            p->reload_frame_height * p->player_scale,
+            flip
+        );
+        return;
+    }
+
     // Sprite de morte (dead)
     if (p->is_dead) {
         int frame_x = p->dead_frame * p->dead_frame_width;
@@ -345,11 +482,10 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
     // Sprite para pulo (jump)
     if (p->is_jumping) {
         sprite = p->jump;
-        flip = (p->last_dir == DIR_LEFT) ? ALLEGRO_FLIP_HORIZONTAL : 0;
-        p->frame_counter++;
-        if (p->frame_counter >= p->frame_delay) {
-            p->jump_frame = (p->jump_frame + 1) % p->jump_max_frames;
-            p->frame_counter = 0;
+        if (p->last_dir == DIR_LEFT) {
+            flip = ALLEGRO_FLIP_HORIZONTAL;
+        } else {
+            flip = 0;
         }
         inicio_x = p->jump_frame * p->jump_frame_width;
         al_draw_scaled_bitmap(
@@ -365,25 +501,13 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
 
     // Sprite para agachar (squat)
     else if (p->control->down) {
-        // Se ainda está agachando, usa as 4 sprites
         if (!p->squat_anim_done) {
             sprite = p->squat;
             if (p->last_dir == DIR_LEFT)
                 flip = ALLEGRO_FLIP_HORIZONTAL;
             else
                 flip = 0;
-            p->frame_counter++;
-            if (p->frame_counter >= p->frame_delay) {
-                p->squat_frame++;
-                p->frame_counter = 0;
-            }
-            if (p->squat_frame >= p->squat_max_frames - 1) {
-                p->squat_frame = p->squat_max_frames - 1;
-                p->squat_anim_done = 1;
-                p->is_squatting = 1;
-            }
             inicio_x = p->squat_frame * p->squat_frame_width;
-        // Se já agachou, usa apenas uma
         } else {
             sprite = p->squat;
             if (p->last_dir == DIR_LEFT)
@@ -391,7 +515,6 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
             else
                 flip = 0;
             inicio_x = (p->squat_max_frames - 1) * p->squat_frame_width;
-            p->is_squatting = 1;
         }
         float squat_scale = p->player_scale;
         float x_offset = 0;
@@ -409,28 +532,10 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
         return;
     }
 
-    // Não correr parado se apertar para esquerda e direita ao mesmo tempo
-    else if (p->control->left && p->control->right) {
-        p->squat_frame = 0;
-        p->squat_anim_done = 0;
-        p->is_squatting = 0;
-        if (p->last_dir == DIR_LEFT) {
-            sprite = p->idle_left;
-        } else {
-            sprite = p->idle;
-        }
-    }
-    
-    // Sprite correndo para esquerda (run)
-    else if (p->control->left) {
+    // Correndo para esquerda
+    else if (p->control->left && !p->control->right) {
         sprite = p->run;
         flip = ALLEGRO_FLIP_HORIZONTAL;
-        p->last_dir = DIR_LEFT;
-        p->frame_counter++;
-        if (p->frame_counter >= p->frame_delay) {
-            p->run_frame = (p->run_frame + 1) % p->run_max_frames;
-            p->frame_counter = 0;
-        }
         inicio_x = p->run_frame * p->run_frame_width;
         al_draw_scaled_bitmap(
             sprite,
@@ -443,16 +548,10 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
         return;
     }
 
-    // Sprite correndo para direita (run)
-    else if (p->control->right) {
+    // Correndo para direita
+    else if (p->control->right && !p->control->left) {
         sprite = p->run;
         flip = 0;
-        p->last_dir = DIR_RIGHT;
-        p->frame_counter++;
-        if (p->frame_counter >= p->frame_delay) {
-            p->run_frame = (p->run_frame + 1) % p->run_max_frames;
-            p->frame_counter = 0;
-        }
         inicio_x = p->run_frame * p->run_frame_width;
         al_draw_scaled_bitmap(
             sprite,
@@ -465,19 +564,11 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
         return;
     }
 
-    // Sprite para ficar parado, sprite "padrão" (idle)
-    p->squat_frame = 0;
-    p->squat_anim_done = 0;
-    p->is_squatting = 0;
+    // Idle
     if (p->last_dir == DIR_LEFT) {
         sprite = p->idle_left;
     } else {
         sprite = p->idle;
-    }
-    p->frame_counter++;
-    if (p->frame_counter >= p->idle_frame_delay) {
-        p->idle_frame = (p->idle_frame + 1) % p->idle_max_frames;
-        p->frame_counter = 0;
     }
     int idle_frame_x = p->idle_frame * p->idle_frame_width;
     al_draw_scaled_bitmap(
@@ -489,7 +580,6 @@ void player1_draw(player1 *p, int player_screen_x, int player_screen_y) {
         0
     );
 
-    // Se está atirando, desenha um sprite completo de tiro e retorna
     if (p->is_shooting) {
         ALLEGRO_BITMAP *sprite = p->shot;
         int shot_frame_x = p->shot_frame * p->shot_frame_width;
@@ -549,6 +639,18 @@ void player1_handle_event(player1 *p, ALLEGRO_EVENT *event, int player_world_x) 
         // Tiro para cima
         else if (event->keyboard.keycode == ALLEGRO_KEY_Q) {
             p->control->up = 1;
+        }
+        // Recarregar
+        else if (event->keyboard.keycode == ALLEGRO_KEY_R) {
+            if (!p->is_reloading && p->ammo < 30 && p->max_ammo > 0 && !p->is_jumping && !p->is_hurt && !p->is_dead) {
+                p->is_reloading = 1;
+                p->reload_frame = 0;
+                p->reload_frame_counter = 0;
+                // Toca o som de recarregar
+                if (p->gun_reload_sound) {
+                    al_play_sample(p->gun_reload_sound, global_volume * 0.3, 0.0, 1.0, ALLEGRO_PLAYMODE_ONCE, NULL);
+                }
+            }
         }
     }
     // Se desapertou a tecla, reseta tudo
@@ -638,7 +740,7 @@ void player1_get_hitbox(player1 *p, int player_screen_x, int player_screen_y, in
         *hitbox_x = draw_x + (sprite_w - *hitbox_w) / 2;
         *hitbox_y = draw_y + (sprite_h - *hitbox_h) / 2 + 50;
     // Hitbox para agachado
-    } else if (p->is_squatting || p->control->down) {
+    } else if (p->is_squatting) {
         sprite_w = p->squat_frame_width * p->player_scale;
         sprite_h = p->squat_frame_height * p->player_scale;
         draw_x = player_screen_x + 20;
@@ -671,5 +773,10 @@ void player1_destroy(player1 *p) {
     if (p->hurt) al_destroy_bitmap(p->hurt);
     if (p->gun) pistol_destroy(p->gun);
     if (p->dead) al_destroy_bitmap(p->dead);
+    if (p->recharge) al_destroy_bitmap(p->recharge);
+    if (p->hud_health) al_destroy_bitmap(p->hud_health);
+    if (p->hud_ammo) al_destroy_bitmap(p->hud_ammo);
+    if (p->gun_shot_sound) al_destroy_sample(p->gun_shot_sound);
+    if (p->gun_reload_sound) al_destroy_sample(p->gun_reload_sound);
     free(p);
 }

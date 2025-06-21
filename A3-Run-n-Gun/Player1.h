@@ -2,6 +2,8 @@
 #define __PLAYER1__
 
 #include <allegro5/allegro5.h>
+#include <allegro5/allegro_audio.h>
+#include <allegro5/allegro_acodec.h>
 #include "Joystick.h"
 #include "Pistol.h"
 
@@ -22,6 +24,10 @@ typedef struct {
     ALLEGRO_BITMAP *hurt;
     ALLEGRO_BITMAP *dead;
     ALLEGRO_BITMAP *hud_health;
+    ALLEGRO_BITMAP *recharge;
+    ALLEGRO_BITMAP *hud_ammo;
+    ALLEGRO_SAMPLE *gun_shot_sound;
+    ALLEGRO_SAMPLE *gun_reload_sound;
 
     // Variáveis para animação das sprites
     int run_frame, run_max_frames, run_frame_width, run_frame_height;
@@ -34,6 +40,8 @@ typedef struct {
     int is_hurt, hurt_frame, hurt_max_frames, hurt_frame_width, hurt_frame_height, hurt_frame_delay, hurt_frame_counter;
     int is_dead, dead_frame, dead_max_frames, dead_frame_width, dead_frame_height, 
         dead_frame_delay, dead_frame_counter, dead_menu_cooldown;
+    int is_reloading, reload_frame, reload_max_frames, reload_frame_width, reload_frame_height, reload_frame_delay,
+        reload_frame_counter, reload_cooldown, ammo, max_ammo;
     float jump_velocity, gravity, jump_strength;
 
     // Variáveis de controle geral
@@ -46,9 +54,7 @@ typedef struct {
 } player1;
 
 player1* create_player1(unsigned short initial_y, unsigned short max_x, unsigned short max_y);
-int player1_load_sprites(player1 *p, const char *idle, const char *idle_left, const char *run,
-                        const char *squat, const char *jump, const char *shot, const char *squat_shot, 
-                        const char *hurt, const char *dead, const char *hud_health);
+int player1_load_sprites(player1 *p);
 void player1_get_hitbox(player1 *p, int player_screen_x, int player_screen_y, int *hx, int *hy, int *hw, int *hh);
 void player1_update(player1 *p, int *player_world_x, int world_width, int player_screen_y);
 void player1_draw(player1 *p, int player_screen_x, int player_screen_y);

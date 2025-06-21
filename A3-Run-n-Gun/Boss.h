@@ -31,7 +31,7 @@ typedef struct {
         hurt_frame_delay, hurt_frame_counter, is_hurt, hurt_timer;
     
     // Ataque
-    int is_attacking, attack_type, attack_frame, attack_max_frames, 
+    int is_attacking, attack_type, attack_frame, attack_max_frames, attack_cooldown_base, 
         attack_frame_delay, attack_frame_counter, attack_cooldown; 
 
     // Morte
