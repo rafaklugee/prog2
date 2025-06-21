@@ -19,8 +19,6 @@
 	
 
 [REFINO]
-- Depois que acabar o jogo, poder mudar a dificuldade do "jogar novamente"
-
 - Deixar a camera travada ao encontrar o boss
 - Colocar as vidas com o gangster fumando animado
 - Controlar cooldown do agachamento

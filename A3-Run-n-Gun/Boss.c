@@ -36,7 +36,7 @@ boss* boss_create(int x, int y, float scale) {
     b->frame_delay = 10;
     b->frame_counter = 0;
     b->is_active = 0;
-    b->health = 35;
+    b->health = 3;
     b->is_hurt = 0;
     // Dano
     b->hurt_max_frames = 2;
@@ -329,7 +329,7 @@ int boss_handle_death_end(
                 // Sair do jogo
                 return 1;
             } else {
-                int menu_result = show_main_menu(disp, font, queue, bg);
+                int menu_result = show_main_menu(disp, font, big_font, queue, bg);
                 if (menu_result == 1) {
                      // Sair do jogo
                     return 1;

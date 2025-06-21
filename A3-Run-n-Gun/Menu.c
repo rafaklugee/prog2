@@ -9,17 +9,28 @@ extern ALLEGRO_SAMPLE *main_music;
 extern ALLEGRO_SAMPLE_ID main_music_id;
 extern float global_volume;
 
-int show_main_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_EVENT_QUEUE* queue, Background* bg) {
+int show_main_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* big_font, ALLEGRO_EVENT_QUEUE* queue, Background* bg) {
     const char* options[] = {"Iniciar Jogo", "Configuracoes", "Sair"};
     int selected = 0;
     bool in_menu = true;
     ALLEGRO_EVENT event;
 
     while (in_menu) {
-        if (bg) background_draw(bg, 0, 800);
-        else al_clear_to_color(al_map_rgb(30, 30, 30));
+        if (bg) 
+            background_draw(bg, 0, 800);
+        else 
+            al_clear_to_color(al_map_rgb(30, 30, 30));
+
+        // Desenha o título do menu
+        al_draw_text(font, al_map_rgb(255, 255, 255), 400, 150, ALLEGRO_ALIGN_CENTRE, "Mafia vs. Monsters");
+
         for (int i = 0; i < 3; i++) {
-            ALLEGRO_COLOR color = (i == selected) ? al_map_rgb(255, 255, 0) : al_map_rgb(200, 200, 200);
+            ALLEGRO_COLOR color;
+            if (i == selected) {
+                color = al_map_rgb(255, 255, 0);
+            } else {
+                color = al_map_rgb(200, 200, 200);
+            }
             al_draw_text(font, color, 400, 250 + i * 40, ALLEGRO_ALIGN_CENTRE, options[i]);
         }
         al_flip_display();
@@ -193,14 +204,14 @@ int show_settings_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_EVENT_
                 global_volume = int_volume / 100.0f;
                 // Sincroniza o volume da música principal
                 al_stop_sample(&main_music_id);
-                al_play_sample(main_music, global_volume * 0.3, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
+                al_play_sample(main_music, global_volume * 0.2, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
             } else if (event.keyboard.keycode == ALLEGRO_KEY_RIGHT) {
                 int_volume += 5;
                 if (int_volume > 100) int_volume = 100;
                 global_volume = int_volume / 100.0f;
                 // Sincroniza o volume da música principal
                 al_stop_sample(&main_music_id);
-                al_play_sample(main_music, global_volume * 0.3, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
+                al_play_sample(main_music, global_volume * 0.2, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
             } else if (event.keyboard.keycode == ALLEGRO_KEY_ESCAPE || event.keyboard.keycode == ALLEGRO_KEY_ENTER) {
                 in_menu = false;
             }
@@ -209,4 +220,16 @@ int show_settings_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_EVENT_
         }
     }
     return 0;
+}
+
+int menu_choose_difficulty(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* big_font, ALLEGRO_EVENT_QUEUE* queue, Background* bg) {
+    int menu_choice = -1;
+    while (menu_choice < 0) {
+        menu_choice = show_difficulty_menu(disp, font, queue, bg);
+        if (menu_choice < 0) {
+            int main_choice = show_main_menu(disp, font, big_font, queue, bg);
+            if (main_choice == 1) return -1; // Sair
+        }
+    }
+    return menu_choice;
 }

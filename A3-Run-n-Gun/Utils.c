@@ -8,6 +8,7 @@
 #include "SlimeBall.h"
 #include "Background.h"
 #include "Boss.h"
+#include "Menu.h"
 
 #define X_SCREEN 800
 #define Y_SCREEN 600

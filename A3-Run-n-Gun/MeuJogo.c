@@ -94,7 +94,7 @@ int main(){
     }
 
     // Mostrando o menu principal
-    int main_choice = show_main_menu(disp, font, queue, bg);
+    int main_choice = show_main_menu(disp, font, big_font, queue, bg);
     // Sair
     if (main_choice == 1) { 
         al_destroy_font(font);
@@ -104,34 +104,25 @@ int main(){
         return 0;
     }
 
-    // Mostrando o menu de dificuldade
-    int menu_choice = -1;
-    while (menu_choice < 0) {
-        menu_choice = show_difficulty_menu(disp, font, queue, bg);
-        if (menu_choice < 0) {
-            // Volta ao menu principal
-            int main_choice = show_main_menu(disp, font, queue, bg);
-            // Sair
-            if (main_choice == 1) { 
-                al_destroy_font(font);
-                al_destroy_event_queue(queue);
-                al_destroy_timer(timer);
-                al_destroy_display(disp);
-                return 0;
-            }
-        }
-    }
-
     // Definição das variáveis de dificuldade (Fácil)
     float enemy_speed_multiplier = 1.0f;
     int enemy_attack_cooldown = 90;
 
-    // Médio
-    if (menu_choice == 1) { 
+    int menu_choice = menu_choose_difficulty(disp, font, big_font, queue, bg);
+    if (menu_choice < 0) {
+        al_destroy_font(font);
+        al_destroy_event_queue(queue);
+        al_destroy_timer(timer);
+        al_destroy_display(disp);
+        return 0;
+    }
+    // Ajustando as variáveis de dificuldade
+    enemy_speed_multiplier = 1.0f;
+    enemy_attack_cooldown = 90;
+    if (menu_choice == 1) {
         enemy_speed_multiplier = 1.3f;
         enemy_attack_cooldown = 60;
-    // Difícil
-    } else if (menu_choice == 2) { 
+    } else if (menu_choice == 2) {
         enemy_speed_multiplier = 1.7f;
         enemy_attack_cooldown = 40;
     }
@@ -369,14 +360,39 @@ int main(){
 
         // Se o personagem morre e sua sprite "dead" acabar, mostra o menu de game over
         if (p->is_dead && p->dead_frame >= p->dead_max_frames - 1 && p->dead_menu_cooldown <= 0) {
-            // Mostra o menu de GAME OVER
             int menu_choice = show_gameover_menu(disp, font, big_font, queue, bg);
             if (menu_choice == 1) {
-                // Sair do jogo
                 running = false;
             } else {
-                // Jogar novamente
-                reset_game_state(&p, &enemies, &player_world_x, &current_camera_x, player_screen_y, bg, BG_REPEAT);
+                // Escolher dificuldade novamente
+                int new_choice = menu_choose_difficulty(disp, font, big_font, queue, bg);
+                if (new_choice < 0) {
+                    running = false;
+                } else {
+                    // Ajuste as variáveis de dificuldade conforme a escolha
+                    enemy_speed_multiplier = 1.0f;
+                    enemy_attack_cooldown = 90;
+                    if (new_choice == 1) {
+                        enemy_speed_multiplier = 1.3f;
+                        enemy_attack_cooldown = 60;
+                    } else if (new_choice == 2) {
+                        enemy_speed_multiplier = 1.7f;
+                        enemy_attack_cooldown = 40;
+                    }
+                    // Atualize os inimigos e boss com os novos valores
+                    reset_game_state(&p, &enemies, &player_world_x, &current_camera_x, player_screen_y, bg, BG_REPEAT);
+                    for (enemy *e = enemies; e; e = e->next) {
+                        e->speed = 1.0f * enemy_speed_multiplier;
+                        e->attack_cooldown = 0;
+                        e->attack_cooldown_base = enemy_attack_cooldown;
+                    }
+                    if (final_boss) {
+                        if (new_choice == 0) final_boss->attack_cooldown_base = 90;
+                        else if (new_choice == 1) final_boss->attack_cooldown_base = 60;
+                        else if (new_choice == 2) final_boss->attack_cooldown_base = 40;
+                        final_boss->attack_cooldown = final_boss->attack_cooldown_base;
+                    }
+                }
             }
         }
     }

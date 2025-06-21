@@ -303,11 +303,20 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
         // Se eu estou pressionando up (Q + SPACE), atira para cima
         if (p->control->up) {
             traj = BULLET_TRAJ_UP;
-            if (p->last_dir == DIR_LEFT)
-                bullet_offset_x = 75;
-            else
-                bullet_offset_x = 175;
-            bullet_offset_y = 180;
+            if (p->control->down) {
+                // Ajuste o offset_x para tiro agachado para cima
+                if (p->last_dir == DIR_LEFT)
+                    bullet_offset_x = 80; 
+                else
+                    bullet_offset_x = 175; 
+                bullet_offset_y = 220;    
+            } else {
+                if (p->last_dir == DIR_LEFT)
+                    bullet_offset_x = 75;
+                else
+                    bullet_offset_x = 175;
+                bullet_offset_y = 180;
+            }
         // Senão, a bala vai para direita ou esquerda
         } else {
             if (p->last_dir == DIR_LEFT)
