@@ -69,11 +69,18 @@ int main(){
     ALLEGRO_TIMER* timer = al_create_timer(1.0 / 30.0);	// Cria o relógio do jogo; isso indica quantas atualizações serão realizadas por segundo (30, neste caso)
 	ALLEGRO_EVENT_QUEUE* queue = al_create_event_queue(); // Cria a fila de eventos; todos os eventos (programação orientada a eventos) 
 	ALLEGRO_DISPLAY* disp = al_create_display(X_SCREEN, Y_SCREEN); // Cria uma janela para o programa, define a largura (x) e a altura (y) da tela em píxeis (800x600, neste caso)
+    if (!disp || !timer || !queue) {
+        fprintf(stderr, "Falha ao criar display, timer ou fila de eventos!\n");
+        return -1;
+    }
 
     ALLEGRO_FONT* small_font = al_load_ttf_font("fonts/TheGodFather.ttf", 16, 0); // Carrega a fonte TTF do jogo (tamanho pequeno)
     ALLEGRO_FONT* font = al_load_ttf_font("fonts/TheGodFather.ttf", 36, 0); // Carrega a fonte TTF do jogo (tamanho normal)
     ALLEGRO_FONT* big_font = al_load_ttf_font("fonts/TheGodFather.ttf", 64, 0); // // Carrega a fonte TTF do jogo (tamanho grande)
-    if (!font || !big_font) return -1;
+    if (!small_font || !font || !big_font) {
+        fprintf(stderr, "Falha ao carregar fontes!\n");
+        return -1;
+    }
 
 	al_register_event_source(queue, al_get_keyboard_event_source()); // Indica que eventos de teclado serão inseridos na nossa fila de eventos
 	al_register_event_source(queue, al_get_display_event_source(disp)); // Indica que eventos de tela serão inseridos na nossa fila de eventos
@@ -83,7 +90,7 @@ int main(){
     if (!main_music) {
         fprintf(stderr, "Falha ao carregar a música principal!\n");
     } else {
-        al_play_sample(main_music, global_volume * 0.2, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
+        al_play_sample(main_music, global_volume * 0.3, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
     }
     
     // Criando o background
@@ -104,10 +111,7 @@ int main(){
         return 0;
     }
 
-    // Definição das variáveis de dificuldade (Fácil)
-    float enemy_speed_multiplier = 1.0f;
-    int enemy_attack_cooldown = 90;
-
+    // Mostrando o menu de escolha de dificuldade
     int menu_choice = menu_choose_difficulty(disp, font, big_font, queue, bg);
     if (menu_choice < 0) {
         al_destroy_font(font);
@@ -115,16 +119,6 @@ int main(){
         al_destroy_timer(timer);
         al_destroy_display(disp);
         return 0;
-    }
-    // Ajustando as variáveis de dificuldade
-    enemy_speed_multiplier = 1.0f;
-    enemy_attack_cooldown = 90;
-    if (menu_choice == 1) {
-        enemy_speed_multiplier = 1.3f;
-        enemy_attack_cooldown = 60;
-    } else if (menu_choice == 2) {
-        enemy_speed_multiplier = 1.7f;
-        enemy_attack_cooldown = 40;
     }
 
     // Criando o player
@@ -141,21 +135,16 @@ int main(){
 
     // Criando 6 inimigos espalhados pelo mapa
     int enemy_positions[6] = {600, 1100, 1700, 2300, 2900, 3500};
-    float enemy_speeds[6] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-
-    enemies = enemy_create(enemy_positions[0], Y_SCREEN - 325, enemy_speeds[0] * enemy_speed_multiplier);
+    enemies = enemy_create(enemy_positions[0], Y_SCREEN - 325, 1.0f);
     enemy *curr = enemies;
     for (int i = 1; i < 6; i++) {
-        curr->next = enemy_create(enemy_positions[i], Y_SCREEN - 325, enemy_speeds[i] * enemy_speed_multiplier);
+        curr->next = enemy_create(enemy_positions[i], Y_SCREEN - 325, 1.0f);
         curr = curr->next;
     }
     curr->next = NULL;
 
-    // Após criar, ajustando o cooldown de ataque de todos
-    for (enemy *e = enemies; e; e = e->next) {
-        e->attack_cooldown = 0;
-        e->attack_cooldown_base = enemy_attack_cooldown;
-    }
+    // Ajusta dificuldade dos inimigos
+    enemy_apply_difficulty(enemies, menu_choice);
 
     // Criando o boss, mas inativo
     final_boss = boss_create(
@@ -164,15 +153,8 @@ int main(){
         3.5f
     );
 
-    // Ajuste o cooldown do boss conforme a dificuldade
-    if (menu_choice == 0) { // Fácil
-        final_boss->attack_cooldown_base = 90;
-    } else if (menu_choice == 1) { // Médio
-        final_boss->attack_cooldown_base = 60;
-    } else if (menu_choice == 2) { // Difícil
-        final_boss->attack_cooldown_base = 40;
-    }
-    final_boss->attack_cooldown = final_boss->attack_cooldown_base;
+    // Ajusta dificuldade do boss
+    boss_apply_difficulty(final_boss, menu_choice);
 
     bool redraw = true; // Variável para controlar quando a tela deve ser redesenhada
     bool running = true; // Variável para controlar o loop principal do jogo
@@ -223,10 +205,10 @@ int main(){
             // Desenha o background com o scroll atual
             background_draw(bg, scroll_x, X_SCREEN);
             
-            // Desenha as balas do player com o scroll atual
+            // Desenha as balas do player (tiros)
             player1_draw_bullets(p, current_camera_x);
 
-            // Desenhe todos os inimigos e hitboxes
+            // Desenhe todos os inimigos
             enemy_draw_all(enemies, current_camera_x, show_hitboxes);
 
             // Desenhar todas as slime balls
@@ -326,7 +308,7 @@ int main(){
 
         // Eventos de teclado gerais
         if (event.type == ALLEGRO_EVENT_KEY_DOWN || event.type == ALLEGRO_EVENT_KEY_UP) {
-            // Atualiza os eventos de teclado do player1
+            // Atualiza os eventos de teclado do player1 se não estiver pausado
             if (!paused) {
                 player1_handle_event(p, &event, player_world_x);
             }
@@ -355,44 +337,14 @@ int main(){
                 }
             }
         }
-        else if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) // Se fechar o display sai do jogo
+        // Se fechar o display sai do jogo
+        else if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) 
             break;
 
         // Se o personagem morre e sua sprite "dead" acabar, mostra o menu de game over
         if (p->is_dead && p->dead_frame >= p->dead_max_frames - 1 && p->dead_menu_cooldown <= 0) {
-            int menu_choice = show_gameover_menu(disp, font, big_font, queue, bg);
-            if (menu_choice == 1) {
+            if (handle_player_death_menu(&p, &enemies, final_boss, &player_world_x, &current_camera_x, player_screen_y, disp, font, big_font, queue, bg, BG_REPEAT)) {
                 running = false;
-            } else {
-                // Escolher dificuldade novamente
-                int new_choice = menu_choose_difficulty(disp, font, big_font, queue, bg);
-                if (new_choice < 0) {
-                    running = false;
-                } else {
-                    // Ajuste as variáveis de dificuldade conforme a escolha
-                    enemy_speed_multiplier = 1.0f;
-                    enemy_attack_cooldown = 90;
-                    if (new_choice == 1) {
-                        enemy_speed_multiplier = 1.3f;
-                        enemy_attack_cooldown = 60;
-                    } else if (new_choice == 2) {
-                        enemy_speed_multiplier = 1.7f;
-                        enemy_attack_cooldown = 40;
-                    }
-                    // Atualize os inimigos e boss com os novos valores
-                    reset_game_state(&p, &enemies, &player_world_x, &current_camera_x, player_screen_y, bg, BG_REPEAT);
-                    for (enemy *e = enemies; e; e = e->next) {
-                        e->speed = 1.0f * enemy_speed_multiplier;
-                        e->attack_cooldown = 0;
-                        e->attack_cooldown_base = enemy_attack_cooldown;
-                    }
-                    if (final_boss) {
-                        if (new_choice == 0) final_boss->attack_cooldown_base = 90;
-                        else if (new_choice == 1) final_boss->attack_cooldown_base = 60;
-                        else if (new_choice == 2) final_boss->attack_cooldown_base = 40;
-                        final_boss->attack_cooldown = final_boss->attack_cooldown_base;
-                    }
-                }
             }
         }
     }

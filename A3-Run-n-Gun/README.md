@@ -16,3 +16,7 @@ Estamina (10pt)
 Dificuldade: fácil, médio, difícil (5pt)
 Trilha sonora com ajustador de volume (7pt)
 
+##### IMPORTANTE #####
+
+A macalan não consegue instalar addon de áudio e
+nem exibir display (remoto)!

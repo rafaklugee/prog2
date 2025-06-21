@@ -194,3 +194,48 @@ void check_slime_collision_with_player(
         }
     }
 }
+
+int handle_player_death_menu(
+    player1 **p, enemy **enemies, boss *final_boss,
+    int *player_world_x, int *current_camera_x, int player_screen_y,
+    ALLEGRO_DISPLAY *disp, ALLEGRO_FONT *font, ALLEGRO_FONT *big_font,
+    ALLEGRO_EVENT_QUEUE *queue, Background *bg, int bg_repeat
+) {
+    int enemy_speed_multiplier = 1.0f;
+    int enemy_attack_cooldown = 90;
+
+    int menu_choice = show_gameover_menu(disp, font, big_font, queue, bg);
+    if (menu_choice == 1) {
+        return 1; // Sair do jogo
+    } else {
+        int new_choice = menu_choose_difficulty(disp, font, big_font, queue, bg);
+        if (new_choice < 0) {
+            return 1; // Sair do jogo
+        } else {
+            // Ajuste as variáveis de dificuldade conforme a escolha
+            enemy_speed_multiplier = 1.0f;
+            enemy_attack_cooldown = 90;
+            if (new_choice == 1) {
+                enemy_speed_multiplier = 1.3f;
+                enemy_attack_cooldown = 60;
+            } else if (new_choice == 2) {
+                enemy_speed_multiplier = 1.7f;
+                enemy_attack_cooldown = 40;
+            }
+            // Atualize os inimigos e boss com os novos valores
+            reset_game_state(p, enemies, player_world_x, current_camera_x, player_screen_y, bg, bg_repeat);
+            for (enemy *e = *enemies; e; e = e->next) {
+                e->speed = 1.0f * enemy_speed_multiplier;
+                e->attack_cooldown = 0;
+                e->attack_cooldown_base = enemy_attack_cooldown;
+            }
+            if (final_boss) {
+                if (new_choice == 0) final_boss->attack_cooldown_base = 90;
+                else if (new_choice == 1) final_boss->attack_cooldown_base = 60;
+                else if (new_choice == 2) final_boss->attack_cooldown_base = 40;
+                final_boss->attack_cooldown = final_boss->attack_cooldown_base;
+            }
+        }
+    }
+    return 0; // Continua o jogo
+}

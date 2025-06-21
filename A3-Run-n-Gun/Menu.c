@@ -9,6 +9,7 @@ extern ALLEGRO_SAMPLE *main_music;
 extern ALLEGRO_SAMPLE_ID main_music_id;
 extern float global_volume;
 
+// Mostra o menu principal
 int show_main_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* big_font, ALLEGRO_EVENT_QUEUE* queue, Background* bg) {
     const char* options[] = {"Iniciar Jogo", "Configuracoes", "Sair"};
     int selected = 0;
@@ -54,11 +55,13 @@ int show_main_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* big_
     return 1;
 }
 
+// Mostra o menu de pause
 void draw_pause_menu(ALLEGRO_FONT* font) {
     al_draw_filled_rectangle(200, 250, 600, 350, al_map_rgba(0,0,0,180));
     al_draw_text(font, al_map_rgb(255,255,0), 400, 280, ALLEGRO_ALIGN_CENTRE, "PAUSADO");
 }
 
+// Mostra o menu de game over
 int show_gameover_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* big_font, ALLEGRO_EVENT_QUEUE* queue, Background* bg) {
     const char* options[] = {"Jogar novamente", "Sair"};
     int selected = 0;
@@ -78,7 +81,8 @@ int show_gameover_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* 
         for (int i = 0; i < 2; i++) {
             ALLEGRO_COLOR color = al_map_rgb(200, 200, 200);
             if (i == selected) {
-                color = al_map_rgb(255, 255, 0); // Destaca a opção selecionada
+                // Destaca a opção selecionada
+                color = al_map_rgb(255, 255, 0);
             }
             al_draw_text(font, color, 400, 270 + i * 40, ALLEGRO_ALIGN_CENTRE, options[i]);
         }
@@ -100,6 +104,7 @@ int show_gameover_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* 
     return 1;
 }
 
+// Mostra o menu de vitória
 int show_victory_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* big_font, ALLEGRO_EVENT_QUEUE* queue, Background* bg) {
     const char* options[] = {"Menu principal", "Sair"};
     int selected = 0;
@@ -138,6 +143,7 @@ int show_victory_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* b
     return 1;
 }
 
+// Mostra o menu de escolha de dificuldade
 int show_difficulty_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_EVENT_QUEUE* queue, Background* bg) {
     const char* options[] = {"Facil", "Medio", "Dificil"};
     int selected = 0;
@@ -170,6 +176,7 @@ int show_difficulty_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_EVEN
     return -1;
 }
 
+// Mostra o menu de configurações
 int show_settings_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_EVENT_QUEUE* queue, Background* bg) {
     bool in_menu = true;
     ALLEGRO_EVENT event;
@@ -204,14 +211,14 @@ int show_settings_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_EVENT_
                 global_volume = int_volume / 100.0f;
                 // Sincroniza o volume da música principal
                 al_stop_sample(&main_music_id);
-                al_play_sample(main_music, global_volume * 0.2, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
+                al_play_sample(main_music, global_volume * 0.3, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
             } else if (event.keyboard.keycode == ALLEGRO_KEY_RIGHT) {
                 int_volume += 5;
                 if (int_volume > 100) int_volume = 100;
                 global_volume = int_volume / 100.0f;
                 // Sincroniza o volume da música principal
                 al_stop_sample(&main_music_id);
-                al_play_sample(main_music, global_volume * 0.2, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
+                al_play_sample(main_music, global_volume * 0.3, 0.0, 1.0, ALLEGRO_PLAYMODE_LOOP, &main_music_id);
             } else if (event.keyboard.keycode == ALLEGRO_KEY_ESCAPE || event.keyboard.keycode == ALLEGRO_KEY_ENTER) {
                 in_menu = false;
             }
@@ -222,13 +229,15 @@ int show_settings_menu(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_EVENT_
     return 0;
 }
 
+// Função que chama o menu de escolha de dificuldade depois que o jogador morre
 int menu_choose_difficulty(ALLEGRO_DISPLAY* disp, ALLEGRO_FONT* font, ALLEGRO_FONT* big_font, ALLEGRO_EVENT_QUEUE* queue, Background* bg) {
     int menu_choice = -1;
     while (menu_choice < 0) {
         menu_choice = show_difficulty_menu(disp, font, queue, bg);
         if (menu_choice < 0) {
             int main_choice = show_main_menu(disp, font, big_font, queue, bg);
-            if (main_choice == 1) return -1; // Sair
+            if (main_choice == 1) 
+                return -1;
         }
     }
     return menu_choice;

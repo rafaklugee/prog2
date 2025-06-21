@@ -44,5 +44,6 @@ void enemy_check_bullet_collisions(enemy *head, pistol *gun);
 void enemy_remove_dead(enemy **head);
 void enemy_destroy(enemy *e);
 void enemy_destroy_all(enemy *head);
+void enemy_apply_difficulty(enemy *head, int difficulty);
 
 #endif

@@ -7,8 +7,8 @@
 #define PISTOL_COOLDOWN 7
 
 typedef struct {																												
-	unsigned char timer; //Relógio de intervalo entre tiros
-	bullet *shots; //Lista de balas ativas no campo disparadas pelas arma	
+	unsigned char timer;
+	bullet *shots;
 } pistol;																														
 
 pistol* pistol_create();																										

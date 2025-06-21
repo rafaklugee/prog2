@@ -184,7 +184,8 @@ void player1_update(player1 *p, int *player_world_x, int world_width, int player
                 if (p->ammo > 30) p->ammo = 30;
             }
         }
-        return; // Bloqueia tudo enquanto recarrega
+        // Bloqueia tudo enquanto recarrega (menos dano e morte)
+        return;
     }
 
     // Se o player não está agachando e não está indo para direita ou esquerda
@@ -691,6 +692,7 @@ void player1_handle_event(player1 *p, ALLEGRO_EVENT *event, int player_world_x) 
         }
 
         // Salto não precisa, pois executa uma vez e retorna
+        // Recarregar não precisa, pois executa uma vez e retorna
     }
 }
 

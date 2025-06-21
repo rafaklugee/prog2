@@ -9,7 +9,7 @@
 #include "Enemy.h"
 #include "Utils.h"
 
-typedef struct {
+typedef struct boss {
     // Sprites
     ALLEGRO_BITMAP *idle;
     ALLEGRO_BITMAP *hurt;
@@ -43,6 +43,7 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes);
 void boss_destroy(boss *b);
 void boss_update(boss *b);
 void boss_check_bullet_collision(boss *b, pistol *g);
+void boss_apply_difficulty(boss *b, int difficulty);
 int boss_handle_death_end(
     boss *b, ALLEGRO_DISPLAY *disp, ALLEGRO_FONT *font, ALLEGRO_FONT *big_font,
     ALLEGRO_EVENT_QUEUE *queue, Background *bg,

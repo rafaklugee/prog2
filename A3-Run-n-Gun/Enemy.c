@@ -295,3 +295,26 @@ void enemy_remove_dead(enemy **head) {
         }
     }
 }
+
+void enemy_apply_difficulty(enemy *head, int difficulty) {
+    float speed_multiplier;
+    int attack_cooldown;
+    switch (difficulty) {
+        case 1: // Médio
+            speed_multiplier = 1.3f;
+            attack_cooldown = 60;
+            break;
+        case 2: // Difícil
+            speed_multiplier = 1.7f;
+            attack_cooldown = 40;
+            break;
+        default: // Fácil
+            speed_multiplier = 1.0f;
+            attack_cooldown = 90;
+    }
+    for (enemy *e = head; e; e = e->next) {
+        e->speed = 1.0f * speed_multiplier;
+        e->attack_cooldown = 0;
+        e->attack_cooldown_base = attack_cooldown;
+    }
+}

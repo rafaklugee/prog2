@@ -36,7 +36,7 @@ boss* boss_create(int x, int y, float scale) {
     b->frame_delay = 10;
     b->frame_counter = 0;
     b->is_active = 0;
-    b->health = 3;
+    b->health = 35;
     b->is_hurt = 0;
     // Dano
     b->hurt_max_frames = 2;
@@ -72,7 +72,7 @@ boss* boss_create(int x, int y, float scale) {
     return b;
 }
 
-// 
+// Desenha o boss e seus sprites na tela
 void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
     if (!b || (!b->is_active && !b->is_dead)) 
         return;
@@ -345,4 +345,19 @@ int boss_handle_death_end(
         boss_death_end_timer = 0;
     }
     return 0;
+}
+
+void boss_apply_difficulty(boss *b, int difficulty) {
+    if (!b) return;
+    switch (difficulty) {
+        case 1: // Médio
+            b->attack_cooldown_base = 60;
+            break;
+        case 2: // Difícil
+            b->attack_cooldown_base = 40;
+            break;
+        default: // Fácil
+            b->attack_cooldown_base = 90;
+    }
+    b->attack_cooldown = b->attack_cooldown_base;
 }
