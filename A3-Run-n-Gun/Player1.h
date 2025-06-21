@@ -26,6 +26,7 @@ typedef struct {
     ALLEGRO_BITMAP *hud_health;
     ALLEGRO_BITMAP *recharge;
     ALLEGRO_BITMAP *hud_ammo;
+    ALLEGRO_BITMAP *bullet_sprite;
     ALLEGRO_SAMPLE *gun_shot_sound;
     ALLEGRO_SAMPLE *gun_reload_sound;
 

@@ -44,6 +44,7 @@ int player1_load_sprites(player1 *p) {
     p->squat = al_load_bitmap("sprites/gangsters/Gangsters_1/Squat.png");
     p->jump = al_load_bitmap("sprites/gangsters/Gangsters_1/Jump.png");
     p->shot = al_load_bitmap("sprites/gangsters/Gangsters_1/Shot.png");
+    p->bullet_sprite = al_load_bitmap("sprites/gangsters/Gangsters_1/Bullet.png");
     p->squat_shot = al_load_bitmap("sprites/gangsters/Gangsters_1/Squat_Shot.png");
     p->hurt = al_load_bitmap("sprites/gangsters/Gangsters_1/Hurt.png");
     p->dead = al_load_bitmap("sprites/gangsters/Gangsters_1/Dead.png");
@@ -57,8 +58,8 @@ int player1_load_sprites(player1 *p) {
 
 
 
-    if (!p->idle || !p->idle_left || !p->run || !p->squat || !p->jump || !p->shot 
-        || !p->hurt || !p->hud_health || !p->recharge || !p->hud_ammo || !p->gun_shot_sound || !p->gun_reload_sound)
+    if (!p->idle || !p->idle_left || !p->run || !p->squat || !p->jump || !p->shot || !p->hurt ||
+        !p->hud_health || !p->recharge || !p->hud_ammo || !p->gun_shot_sound || !p->gun_reload_sound || !p->bullet_sprite)
         return 0;
 
     // Frames e dimensões
@@ -727,12 +728,24 @@ void player1_draw_bullets(player1 *p, int camera_x) {
     for (bullet *b = p->gun->shots; b != NULL; b = (bullet*)b->next) {
         int screen_x = b->x - camera_x;
         int screen_y = b->y;
-        // Desenho da bala propriamente
-        al_draw_filled_rectangle(
-            screen_x, screen_y,
-            screen_x + 4, screen_y + 4,
-            al_map_rgb(255, 255, 255)
-        );
+        int flip = 0;
+        if (p->last_dir == DIR_LEFT) {
+            flip = ALLEGRO_FLIP_HORIZONTAL;
+        }
+        if (p->bullet_sprite) {
+            int bullet_w = al_get_bitmap_width(p->bullet_sprite);
+            int bullet_h = al_get_bitmap_height(p->bullet_sprite);
+            float scale = 0.1f;
+            int offset_y = 5;
+            al_draw_scaled_bitmap(
+                p->bullet_sprite,
+                0, 0, bullet_w, bullet_h,
+                screen_x - (bullet_w * scale) / 2,
+                screen_y - (bullet_h * scale) / 2 + offset_y,
+                bullet_w * scale, bullet_h * scale,
+                flip
+            );
+        }
     }
 }
 
@@ -783,6 +796,9 @@ void player1_destroy(player1 *p) {
     if (p->jump) al_destroy_bitmap(p->jump);
     if (p->hurt) al_destroy_bitmap(p->hurt);
     if (p->gun) pistol_destroy(p->gun);
+    if (p->shot) al_destroy_bitmap(p->shot);
+    if (p->bullet_sprite) al_destroy_bitmap(p->bullet_sprite);
+    if (p->squat_shot) al_destroy_bitmap(p->squat_shot);
     if (p->dead) al_destroy_bitmap(p->dead);
     if (p->recharge) al_destroy_bitmap(p->recharge);
     if (p->hud_health) al_destroy_bitmap(p->hud_health);
