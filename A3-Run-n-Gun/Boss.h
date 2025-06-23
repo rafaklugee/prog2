@@ -14,7 +14,8 @@ typedef struct boss {
     ALLEGRO_BITMAP *idle;
     ALLEGRO_BITMAP *hurt;
     ALLEGRO_BITMAP *attack1; 
-    ALLEGRO_BITMAP *attack2; 
+    ALLEGRO_BITMAP *attack2;
+    ALLEGRO_BITMAP *attack3; 
     ALLEGRO_BITMAP *death;
 
     // Variáveis de controle geral

@@ -21,7 +21,7 @@ typedef struct slime_ball {
     
     // Variáveis para animação das sprites
     int anim_frame, anim_max_frames, anim_frame_width, anim_frame_height;
-    int anim_frame_counter, anim_frame_delay;
+    int anim_frame_counter, anim_frame_delay, zigzag, boss_zigzag;
     
     struct slime_ball *next;
     slime_type type;

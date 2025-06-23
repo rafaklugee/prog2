@@ -27,6 +27,7 @@ boss* boss_create(int x, int y, float scale) {
     b->hurt = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_hurt.png");
     b->attack1 = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_attack2.png");
     b->attack2 = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_attack1.png");
+    b->attack3 = al_load_bitmap("sprites/slime/Green_Slime/Slime_Coming.png");
     b->death = al_load_bitmap("sprites/boss/3_Big_Bloated/Big_bloated_death.png");
     // Frames e dimensões
     b->max_frames = 4;
@@ -94,7 +95,13 @@ void boss_draw(boss *b, int camera_x, bool show_hitboxes) {
     }
     // Ataque
     else if (b->is_attacking) {
-        ALLEGRO_BITMAP *atk = (b->attack_type == 1) ? b->attack1 : b->attack2;
+        ALLEGRO_BITMAP *atk;
+        if (b->attack_type == 1) 
+            atk = b->attack1;
+        if (b->attack_type == 2)
+            atk = b->attack2;
+        if (b->attack_type == 3)
+            atk = b->attack2;
         int frame_w = al_get_bitmap_width(atk) / b->attack_max_frames;
         int frame_h = al_get_bitmap_height(atk);
         int frame_x = b->attack_frame * frame_w;
@@ -212,7 +219,20 @@ void boss_update(boss *b) {
                     );
                     sb->next = slime_balls;
                     slime_balls = sb;
+                } else if (b->attack_type == 3) {
+                    // Ataque slime ball verde: 1 slime grande e lenta caminhando em "W"
+                    float base_x = b->x + b->frame_width * b->scale / 2;
+                    float base_y = b->y + b->frame_height * b->scale / 2;
+                    slime_ball *sb = slime_ball_create(
+                        base_x, base_y,
+                        -5, 0, // vx reto, vy zero
+                        SLIME_GREEN
+                    );
+                    sb->boss_zigzag = 1;
+                    sb->next = slime_balls;
+                    slime_balls = sb;
                 }
+
 
                 // No fim do ataque, reseta os frames de ataque
                 b->is_attacking = 0;
@@ -227,7 +247,7 @@ void boss_update(boss *b) {
         // Ataca, mas só ataca se o player estiver perto (600 pixels)
         } else {
             if (abs((int)(b->x - player_world_x)) < 600) {
-                b->attack_type = (rand() % 2) + 1;
+                b->attack_type = 3;
                 b->is_attacking = 1;
                 b->attack_frame = 0;
                 b->attack_frame_counter = 0;

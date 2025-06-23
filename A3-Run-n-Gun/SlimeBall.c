@@ -34,6 +34,8 @@ slime_ball* slime_ball_create(float x, float y, float vx, float vy, slime_type t
     b->anim_frame_counter = 0;
     b->anim_frame_delay = 3;
     b->type = type;
+    b->zigzag = 0;
+    b->boss_zigzag = 0;
 
     // A slime ball vermelha tem tamanho maior
     if (type == SLIME_RED)
@@ -58,9 +60,23 @@ slime_ball* slime_ball_create(float x, float y, float vx, float vy, slime_type t
 // Lógicas de update das slime balls
 void slime_ball_update(slime_ball **head, int world_width) {
     slime_ball **curr = head;
-    // Calcula a nova posição de cada slime ball
     while (*curr) {
         slime_ball *b = *curr;
+
+        // Movimento em zigzag para slime verde
+        if (b->type == SLIME_GREEN && b->boss_zigzag) {
+            b->zigzag++;
+            int periodo = 12; // Quantos frames dura cada subida ou descida
+            float amplitude = 3; // O quanto sobe ou desce por frame
+
+            // Alterna o vy a cada período de frames
+            if ((b->zigzag / periodo) % 2 == 0) {
+                b->vy = amplitude;
+            } else {
+                b->vy = -amplitude;
+            }
+        }
+
         b->x += b->vx;
         b->y += b->vy;
 
