@@ -134,21 +134,21 @@ int main(){
     }
 
     // Criando 6 inimigos espalhados pelo mapa
-    //int enemy_positions[6] = {600, 1100, 1700, 2300, 2900, 3500};
-    //enemies = enemy_create(enemy_positions[0], Y_SCREEN - 325, 1.0f);
-    //enemy *curr = enemies;
-    //for (int i = 1; i < 6; i++) {
-    //    curr->next = enemy_create(enemy_positions[i], Y_SCREEN - 325, 1.0f);
-    //    curr = curr->next;
-    //}
-    //curr->next = NULL;
+    int enemy_positions[6] = {600, 1100, 1700, 2300, 2900, 3500};
+    enemies = enemy_create(enemy_positions[0], Y_SCREEN - 325, 1.0f);
+    enemy *curr = enemies;
+    for (int i = 1; i < 6; i++) {
+        curr->next = enemy_create(enemy_positions[i], Y_SCREEN - 325, 1.0f);
+        curr = curr->next;
+    }
+    curr->next = NULL;
 
     // Ajusta dificuldade dos inimigos
     enemy_apply_difficulty(enemies, menu_choice);
 
     // Criando o boss, mas inativo
     final_boss = boss_create(
-        BG_REPEAT * bg->scaled_w_near - 3500,
+        BG_REPEAT * bg->scaled_w_near - 300,
         Y_SCREEN - 325,
         3.5f
     );

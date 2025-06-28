@@ -37,7 +37,7 @@ boss* boss_create(int x, int y, float scale) {
     b->frame_delay = 10;
     b->frame_counter = 0;
     b->is_active = 0;
-    b->health = 35;
+    b->health = 5;
     b->is_hurt = 0;
     // Dano
     b->hurt_max_frames = 2;
