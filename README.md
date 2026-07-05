@@ -42,7 +42,11 @@ Jogo estilo run-n-gun, com movimentação, tiros e inimigos, desenvolvido em C u
 
 ```bash
 cd A3-Run-n-Gun
-# siga as instruções de compilação/execução específicas do diretório
+sudo apt update
+sudo apt install liballegro5-dev
+sudo apt install liballegro5-dev liballegro-acodec5-dev
+make
+./game
 ```
 
 ## Tecnologias utilizadas
